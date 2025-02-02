@@ -1,0 +1,17 @@
+version: '3'
+services:
+  frontend:
+    build: ./blog-frontend
+    ports:
+      - "80:80"
+      
+  backend:
+    build: ./blog-backend
+    ports:
+      - "8080:8080"
+      
+  mysql:
+    image: mysql:8.0
+    
+  redis:
+    image: redis:7.2.3 

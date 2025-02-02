@@ -1,0 +1,40 @@
+{
+  "name": "danny",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.7.2",
+    "@iconify/icons-material-symbols": "^1.2.58",
+    "@iconify/icons-mdi": "^1.2.48",
+    "@iconify/vue": "^4.3.0",
+    "@studio-freight/lenis": "^1.0.42",
+    "@vueuse/core": "^12.4.0",
+    "echarts": "^5.6.0",
+    "gsap": "^3.12.5",
+    "pinia": "^2.3.0",
+    "swiper": "^11.1.15",
+    "tsparticles-slim": "^2.12.0",
+    "typewriter-effect": "^2.21.0",
+    "vue": "^3.5.13",
+    "vue-draggable-next": "^2.2.1",
+    "vue-router": "^4.5.0",
+    "vue3-particles": "^2.12.0"
+  },
+  "devDependencies": {
+    "@iconify-json/mdi": "^1.2.2",
+    "@types/node": "^22.10.5",
+    "@types/vue-router": "^2.0.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/tsconfig": "^0.7.0",
+    "sass": "^1.83.1",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.5",
+    "vue-tsc": "^2.2.0"
+  }
+}

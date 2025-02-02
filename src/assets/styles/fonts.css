@@ -1,0 +1,37 @@
+/* 英文字体 */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/english/montserrat/Montserrat-Regular.woff2') format('woff2'),
+       url('/fonts/english/montserrat/Montserrat-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/english/montserrat/Montserrat-Bold.woff2') format('woff2'),
+       url('/fonts/english/montserrat/Montserrat-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 中文字体 */
+@font-face {
+  font-family: 'Noto Sans SC';
+  src: url('/fonts/chinese/noto-sans/NotoSansSC-Regular.woff2') format('woff2'),
+       url('/fonts/chinese/noto-sans/NotoSansSC-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  src: url('/fonts/chinese/noto-sans/NotoSansSC-Bold.woff2') format('woff2'),
+       url('/fonts/chinese/noto-sans/NotoSansSC-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+} 

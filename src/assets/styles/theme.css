@@ -1,0 +1,155 @@
+/* 创建一个新的全局样式文件 */
+
+/* 基础样式 */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 导航栏样式 */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 35px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+.nav-hidden {
+  transform: translateY(-100%);
+}
+
+.nav-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.logo a {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #000;
+  text-decoration: none;
+  text-shadow: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 10px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #000;
+  text-decoration: none;
+  font-size: 1rem;
+  transition: color 0.3s ease;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.nav-icon {
+  font-size: 1.2rem;
+}
+
+.nav-link:hover {
+  color: #87CEEB;
+}
+
+/* 暗色主题下的导航栏样式 */
+.dark-theme .nav {
+  background: rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .logo a,
+.dark-theme .nav-link {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 文章卡片样式 */
+.article-area,
+.info-card,
+.site-info {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+}
+
+.article-item {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.article-item .title {
+  color: var(--text-primary);
+}
+
+.article-item .meta,
+.article-item .summary {
+  color: var(--text-primary);
+  opacity: 0.8;
+}
+
+/* 波浪背景样式 */
+.wave {
+  fill: var(--bg-primary);
+  transition: fill 0.3s ease;
+}
+
+/* 暗色主题下的文章卡片和波浪样式 */
+.dark-theme .article-area,
+.dark-theme .info-card,
+.dark-theme .site-info {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.dark-theme .article-item {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dark-theme .wave {
+  fill: var(--bg-secondary);
+}
+
+.dark-theme .count {
+  color: var(--text-primary);
+}
+
+.dark-theme .label {
+  color: var(--text-primary);
+  opacity: 0.8;
+}
+
+.dark-theme .sidebar-title {
+  color: var(--text-primary);
+}
+
+/* 其他全局主题相关样式... */
+
+:root {
+  --bg-primary: #ffffff;
+  --bg-primary-rgb: 255, 255, 255;
+  --card-bg-light: rgba(255, 255, 255, 0.7); /* 日间模式卡片背景 */
+  --card-shadow-light: 0 8px 32px rgba(0, 0, 0, 0.1); /* 日间模式阴影 */
+  --card-border-light: 1px solid rgba(255, 255, 255, 0.4); /* 日间模式边框 */
+}
+
+.dark-theme {
+  --bg-primary: #1a1a1a;
+  --bg-primary-rgb: 26, 26, 26;
+  --card-bg-dark: rgba(255, 255, 255, 0.1); /* 夜间模式保持原样 */
+  --card-shadow-dark: none;
+  --card-border-dark: 1px solid rgba(255, 255, 255, 0.1);
+} 

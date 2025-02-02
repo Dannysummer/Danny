@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/src/assets/logo.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/src/assets/logo.png" />
+    <title>Dansela's Blog</title>
+
+    <script>
+      let originTitle = document.title;
+      let isLeave = false;
+      
+      document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+          document.title = '👀 咦~跑去哪儿了？';
+          document.querySelector("link[rel*='icon']").href = '/Icon/eye.ico';
+          isLeave = true;
+        } else {
+          if (isLeave) {
+            document.title = '👊 抓到你啦！';
+            document.querySelector("link[rel*='icon']").href = '/src/assets/logo.png';
+            setTimeout(() => {
+              document.title = originTitle;
+            }, 2000);
+            isLeave = false;
+          }
+        }
+      });
+    </script>
+
+    <script src="/live2d/TweenLite.js"></script>
+    <script src="/live2d/live2dcubismcore.min.js"></script>
+    <script src="/live2d/pixi.min.js"></script>
+    <script src="/live2d/cubism4.min.js"></script>
+    <script src="/live2d/pio.js"></script>
+    <script src="/live2d/pio_sdk4.js"></script>
+    <script src="/live2d/load.js"></script>
+    <link rel="stylesheet" type="text/css" href="/live2d/pio.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
