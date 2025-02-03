@@ -457,6 +457,17 @@ body {
   --border-color: #eeeeee;
   --bg-primary-rgb: 255, 255, 255;
   --article-bg-image: url('/background/article-card-bg2.jpg'); /* 日间模式背景 */
+  --text-color: #2c3e50;
+  --theme-color: #00a8ff;
+  --code-bg: rgba(0, 0, 0, 0.05);
+  --code-block-bg: #282c34;
+  --quote-bg: rgba(0, 168, 255, 0.1);
+  --quote-color: #666;
+  --link-color: #00a8ff;
+  --link-border-color: rgba(0, 168, 255, 0.5);
+  --link-hover-color: #0076e4;
+  --table-header-bg: rgba(0, 168, 255, 0.1);
+  --table-row-bg: rgba(0, 0, 0, 0.02);
 }
 
 .dark-theme {
@@ -466,6 +477,16 @@ body {
   --border-color: #333333;
   --bg-primary-rgb: 26, 26, 26;
   --article-bg-image: url('/background/article-card-bg.jpg'); /* 夜间模式背景 */
+  --text-color: #e5e5e5;
+  --code-bg: rgba(255, 255, 255, 0.1);
+  --code-block-bg: #1a1a1a;
+  --quote-bg: rgba(255, 255, 255, 0.1);
+  --quote-color: #bbb;
+  --link-color: #00a8ff;
+  --link-border-color: rgba(0, 168, 255, 0.5);
+  --link-hover-color: #3dbeff;
+  --table-header-bg: rgba(255, 255, 255, 0.1);
+  --table-row-bg: rgba(255, 255, 255, 0.05);
 }
 
 /* 主题切换按钮样式 */

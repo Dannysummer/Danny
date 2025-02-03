@@ -81,7 +81,7 @@
                         <div class="month-point"></div>
                         <h3 class="month-title">{{ monthGroup.month }}月</h3>
                         <div class="article-item" v-for="article in monthGroup.articles" :key="article.id"
-                             @click="router.push(`/article/${article.id}`)">
+                             @click="navigateToArticle(article)">
                           <div class="time-point"></div>
                           <div class="article-content">
                             <div class="article-main">
@@ -102,7 +102,7 @@
                     </template>
                     <template v-else>
                       <div class="article-item" v-for="article in year.articles" :key="article.id"
-                           @click="router.push(`/article/${article.id}`)">
+                           @click="navigateToArticle(article)">
                         <div class="time-point"></div>
                         <div class="article-content">
                           <div class="article-main">
@@ -487,6 +487,15 @@ const monthlyData = computed(() => {
       count: count as number
     }))
 })
+
+const navigateToArticle = (article: Article) => {
+  console.log('Navigating to article:', article) // 调试日志
+  router.push({
+    name: 'article',
+    params: { id: article.id },
+    query: { from: 'archive' }
+  })
+}
 </script>
 
 <style scoped>
