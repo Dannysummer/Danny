@@ -260,8 +260,8 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 5px;
-  color: #1568ac;
-  /* background: rgba(255, 255, 255, 0.1); */
+  /* color: #1568ac !important; */
+  background: rgba(255, 255, 255, 0.0) !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -276,7 +276,7 @@ onMounted(() => {
 
 .change-btn .iconify {
   font-size: 1.2rem;
-  color: rgba(0, 204, 255, 0.8);
+  color: rgba(0, 204, 255, 0.8) !important;
 }
 
 .dark .change-btn {

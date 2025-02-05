@@ -1,0 +1,61 @@
+/* 全局文本选择样式 */
+::selection {
+  background: rgba(57,197,187);
+  /* color: #fff; */
+}
+
+::-moz-selection {
+  background: rgba(57,197,187);
+  color: #fff;
+}
+
+.copy-tip {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 168, 255, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-family: 'ZhuZiAWan', sans-serif;
+  z-index: 9999;
+  animation: fadeInOut 2s ease;
+  box-shadow: 0 0 20px rgba(0, 168, 255, 0.3);
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translate(-50%, -20px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+/* 禁止 app 的滚动条 */
+#app {
+  overflow: hidden !important;
+}
+
+/* 将滚动移到 body 上 */
+body {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 美化 body 的滚动条 */
+body::-webkit-scrollbar {
+  width: 6px;
+}
+
+body::-webkit-scrollbar-track {
+  background: rgba(0, 195, 255, 0.192);
+}
+
+body::-webkit-scrollbar-thumb {
+  background: rgba(0, 195, 255, 0.445);
+  border-radius: 4px;
+}
+
+body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 195, 255, 0.767);
+} 

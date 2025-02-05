@@ -461,7 +461,7 @@ body {
   --theme-color: #00a8ff;
   --code-bg: rgba(0, 0, 0, 0.05);
   --code-block-bg: #282c34;
-  --quote-bg: rgba(0, 168, 255, 0.1);
+  --quote-bg: rgba(0, 0, 0, 0.596);
   --quote-color: #666;
   --link-color: #00a8ff;
   --link-border-color: rgba(0, 168, 255, 0.5);

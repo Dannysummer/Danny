@@ -1,13 +1,20 @@
+import markdownTest from './articleMd/markdown语法测试集合.md?raw'
+import cssComputeProcess from './articleMd/CSS 属性计算过程.md?raw'
+
 export interface Article {
   id: number
   title: string
   createTime: string
+  updateTime: string
   views: number
   cover: string
   content: string
   description?: string
+  aiSummary?: string
   tags?: string[]
   category?: string
+  author?: string
+  license?: string
 }
 
 export interface TimelineYear {
@@ -23,6 +30,7 @@ export const timelineData: TimelineYear[] = [
         id: 1,
         title: 'Cloudflare/Vercel项目推荐(3)',
         createTime: '2025-01-14',
+        updateTime: '2025-01-14',
         views: 558,
         cover: '/articles/cover/3.jpg',
         content: `# Cloudflare/Vercel项目推荐
@@ -46,92 +54,40 @@ console.log("Hello from Worker!");
 更多内容请继续阅读...`,
         description: '推荐一些基于 Cloudflare/Vercel 的优质开源项目',
         tags: ['Cloudflare', 'Vercel', '项目推荐', '开源'],
-        category: '技术分享'
+        category: '技术分享',
+        aiSummary: '这篇文章详细介绍了 Cloudflare/Vercel 项目的推荐，包括 Cloudflare Workers、Vercel Serverless Functions 和 Edge Computing 的技术细节。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       },
       {
         id: 2,
         title: 'CSS属性计算过程详解',
         createTime: '2025-05-14',
+        updateTime: '2025-05-14',
         views: 558,
         cover: '/articles/cover/3.jpg',
-        content: `# CSS 属性计算过程
-
-## 你是否了解 CSS 的属性计算过程呢？
-
-有的同学可能会讲，CSS属性我倒是知道，例如：
-
-\`\`\`css
-p {
-  color: red;
-}
-\`\`\`
-
-上面的 CSS 代码中，p 是元素选择器，color 就是其中的一个 CSS 属性。
-
-但是要说 CSS 属性的计算过程，还真的不是很清楚。
-
-### 没关系，通过此篇文章，能够让你彻底明白什么是 CSS 属性的计算流程。
-
-![CSS属性计算流程](https://xiejie-typora.oss-cn-chengdu.aliyuncs.com/2022-08-13-060434.png)
-
-#### 首先，不知道你有没有考虑过这样的一个问题，假设在 HTML 中有这么一段代码：
-
-\`\`\`html
-<body>
-  <h1>这是一个h1标题</h1>
-</body>
-\`\`\`
-
-### 比较优先级
-
-那么接下来，如果是在在同一个源中有样式声明冲突怎么办呢？此时就会进行样式声明的优先级比较。
-
-例如：
-
-\`\`\`html
-<div class="test">
-  <h1>test</h1>
-</div>
-\`\`\`
-
-\`\`\`css
-.test h1 {
-  font-size: 50px;
-}
-
-h1 {
-  font-size: 20px;
-}
-\`\`\`
-
-在上面的代码中，同属于**页面作者样式**，源的重要性是相同的，此时会以选择器的权重来比较重要性。
-
-很明显，上面的选择器的权重要大于下面的选择器，因此最终标题呈现为 *50px*。
-
-对应的结果如下：
-
-| 元素    | 包含块                      |
-| ------- | --------------------------- |
-| html    | initial C.B. (UA-dependent) |
-| body    | html                        |
-| div1    | body                        |
-| p1      | div1                        |
-| p2      | div1                        |
-| em1     | p2                          |
-| strong1 | p2                          |
-
-首先 HTML 作为根元素，对应的包含块就是前面我们所说的初始包含块，而对于 body 而言，这是一个 static 定位的元素，因此该元素的包含块参照第一条为 html，以此类推 div1、p1、p2 以及 em1 的包含块也都是它们的父元素。
-
-不过 strong1 比较例外，它的包含块确实 p2，而非 em1。为什么会这样？建议你再把非根元素的第一条规则读一下：
-
-- 如果元素的 positiion 是 relative 或 static ，那么包含块由离它最近的**块容器（block container）**的内容区域（content area）的边缘建立。
-
-![选择器权重比较](https://xiejie-typora.oss-cn-chengdu.aliyuncs.com/2021-09-16-071546.png)
-
-更多内容请参考：[MDN Specificity](https://developer.mozilla.org/en-US/docs/Web/CSS/Specificity)`,
+        content: cssComputeProcess,
         description: 'CSS属性计算过程的详细解析',
         tags: ['CSS', '前端', '技术文章'],
-        category: '技术分享'
+        category: '技术分享',
+        aiSummary: '这篇文章详细介绍了 CSS 属性的计算过程，包括声明值确定、层叠冲突解决、继承和默认值的使用等内容。通过实例讲解了不同来源样式的优先级以及选择器权重的计算方式。',
+        author: 'Duyi',
+        license: 'CC BY-NC-SA 4.0'
+      },
+      {
+        id: 12,
+        title: 'Markdown语法测试集合',
+        createTime: '2025-01-14',
+        updateTime: '2025-01-14',
+        views: 558,
+        cover: '/articles/cover/3.jpg',
+        content: markdownTest,
+        description: 'Markdown语法的完整测试文档',
+        tags: ['Markdown', '测试', '文档'],
+        category: '技术分享',
+        aiSummary: '这篇文章详细介绍了 Markdown 语法的完整测试文档，包括各种测试用例和实际应用场景。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       }
     ]
   },
@@ -139,26 +95,34 @@ h1 {
     year: '2024',
     articles: [
       {
-        id: 2,
-        title: '2024，清风入梦，扬帆待明年',
+        id: 12,
+        title: 'MD样式测试文本',
         createTime: '2024-12-31',
+        updateTime: '2025-01-14',
         views: 326,
         cover: '/articles/cover/1.jpg',
-        content: '# Cloudflare/Vercel项目推荐\n\n这是一篇关于云服务的文章...',
+        content: ``,
         description: '2024年终总结',
         tags: ['年终总结', '生活感悟', '2024'],
-        category: '日常分享'
+        category: '日常分享',
+        aiSummary: '这篇文章总结了2024年的生活和工作经历，分享了作者在这一年中的感悟和成长。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       },
       {
         id: 3,
         title: '华为通用软件开发工程师面经',
         createTime: '2024-12-25',
+        updateTime: '2025-01-14',
         views: 445,
         cover: '/articles/cover/2.jpg',
         content: '# Cloudflare/Vercel项目推荐\n\n这是一篇关于云服务的文章...',
         description: '华为通用软件开发工程师面试经验分享',
         tags: ['面试', '华为', '经验分享', '求职'],
-        category: '学习资料'
+        category: '学习资料',
+        aiSummary: '这篇文章分享了华为通用软件开发工程师面试的经验，包括面试流程、准备技巧和面试官可能会问到的问题。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       }
     ]
   },
@@ -169,29 +133,41 @@ h1 {
         id: 2,
         title: '2024，清风入梦，扬帆待明年',
         createTime: '2024-12-31',
+        updateTime: '2025-01-14',
         views: 326,
         cover: '/articles/cover/1.jpg',
         content: '# Cloudflare/Vercel项目推荐\n\n这是一篇关于云服务的文章...',
         description: '2024年终总结',
-        category: '年度总结'
+        category: '年度总结',
+        aiSummary: '这篇文章总结了2024年的工作和生活经历，展望了未来的计划和目标。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       },
       {
         id: 3,
         title: '华为通用软件开发工程师面经',
         createTime: '2024-12-25',
+        updateTime: '2025-01-14',
         views: 445,
         cover: '/articles/cover/2.jpg',
         content: '# Cloudflare/Vercel项目推荐\n\n这是一篇关于云服务的文章...',
-        description: '华为通用软件开发工程师面试经验分享'
+        description: '华为通用软件开发工程师面试经验分享',
+        aiSummary: '这篇文章分享了华为通用软件开发工程师面试的经验，包括面试流程、准备技巧和面试官可能会问到的问题。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       },
       {
         id: 4,
         title: '华为通用软件开发工程师面经',
         createTime: '2024-12-25',
+        updateTime: '2025-01-14',
         views: 445,
         cover: '/articles/cover/2.jpg',
         content: '# Cloudflare/Vercel项目推荐\n\n这是一篇关于云服务的文章...',
-        description: '华为通用软件开发工程师面试经验分享'
+        description: '华为通用软件开发工程师面试经验分享',
+        aiSummary: '这篇文章分享了华为通用软件开发工程师面试的经验，包括面试流程、准备技巧和面试官可能会问到的问题。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       }
     ]
   },
@@ -202,15 +178,20 @@ h1 {
         id: 2,
         title: '2024，清风入梦，扬帆待明年',
         createTime: '2022-12-31',
+        updateTime: '2025-01-14',
         views: 326,
         cover: '/articles/cover/1.jpg',
         content: '# Cloudflare/Vercel项目推荐\n\n这是一篇关于云服务的文章...1223132',
-        description: '2024年终总结'
+        description: '2024年终总结',
+        aiSummary: '这篇文章总结了2024年的工作和生活经历，展望了未来的计划和目标。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       },
       {
         id: 3,
         title: 'test',
         createTime: '2022-12-25',
+        updateTime: '2025-01-14',
         views: 445,
         cover: '/articles/cover/2.jpg',
         content: `Lorem ipsum dolor sit, amet consectetur adipisicing elit. Modi, hic.
@@ -238,16 +219,23 @@ h1 {
         Aperiam molestiae quod, ducimus aspernatur saepe nulla porro? Nobis, dolorum.
         Assumenda totam quasi illum. Voluptatibus recusandae non accusamus maxime quaerat.
         Doloremque quasi distinctio deleniti ipsa nesciunt quo beatae voluptas quis.`,
-        description: '华为通用软件开发工程师面试经验分享'
+        description: '华为通用软件开发工程师面试经验分享',
+        aiSummary: '这篇文章分享了华为通用软件开发工程师面试的经验，包括面试流程、准备技巧和面试官可能会问到的问题。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       },
       {
         id: 4,
         title: '华为通用软件开发工程师面经',
         createTime: '2022-12-25',
+        updateTime: '2025-01-14',
         views: 445,
         cover: '/articles/cover/2.jpg',
         content: '# Cloudflare/Vercel项目推荐\n\n这是一篇关于云服务的文章...',
-        description: '华为通用软件开发工程师面试经验分享'
+        description: '华为通用软件开发工程师面试经验分享',
+        aiSummary: '这篇文章分享了华为通用软件开发工程师面试的经验，包括面试流程、准备技巧和面试官可能会问到的问题。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       }
     ]
   },
@@ -258,28 +246,40 @@ h1 {
         id: 2,
         title: '2024，清风入梦，扬帆待明年',
         createTime: '2021-07-31',
+        updateTime: '2025-01-14',
         views: 326,
         cover: '/articles/cover/1.jpg',
         content: '# Cloudflare/Vercel项目推荐\n\n这是一篇关于云服务的文章...',
-        description: '2024年终总结'
+        description: '2024年终总结',
+        aiSummary: '这篇文章总结了2024年的工作和生活经历，展望了未来的计划和目标。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       },
       {
         id: 3,
         title: '华为通用软件开发工程师面经',
         createTime: '2021-12-25',
+        updateTime: '2025-01-14',
         views: 445,
         cover: '/articles/cover/2.jpg',
         content: '# Cloudflare/Vercel项目推荐\n\n这是一篇关于云服务的文章...',
-        description: '华为通用软件开发工程师面试经验分享'
+        description: '华为通用软件开发工程师面试经验分享',
+        aiSummary: '这篇文章分享了华为通用软件开发工程师面试的经验，包括面试流程、准备技巧和面试官可能会问到的问题。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       },
       {
         id: 4,
         title: '华为通用软件开发工程师面经',
         createTime: '2021-05-25',
+        updateTime: '2025-01-14',
         views: 445,
         cover: '/articles/cover/2.jpg',
         content: '# Cloudflare/Vercel项目推荐\n\n这是一篇关于云服务的文章...',
-        description: '华为通用软件开发工程师面试经验分享'
+        description: '华为通用软件开发工程师面试经验分享',
+        aiSummary: '这篇文章分享了华为通用软件开发工程师面试的经验，包括面试流程、准备技巧和面试官可能会问到的问题。',
+        author: 'LiuShen',
+        license: 'CC BY-NC-SA 4.0'
       }
     ]
   }
