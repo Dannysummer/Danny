@@ -9,7 +9,7 @@
       <div v-if="!showMenu" class="user-header">
         <div class="avatar-container">
           <img v-if="userStore.isLoggedIn" 
-               :src="userStore.userInfo?.avatar || '/default-avatar.png'" 
+               :src="userStore.userInfo?.avatar || '/avatars/default-avatar.png'" 
                alt="用户头像"
                class="user-avatar" />
           <Icon v-else icon="mdi:login" class="login-icon" />
@@ -23,7 +23,7 @@
       <div v-else class="expanded-content">
         <div class="user-header-expanded">
           <div class="avatar-container large">
-            <img :src="userStore.userInfo?.avatar || '/default-avatar.png'" 
+            <img :src="userStore.userInfo?.avatar || '/avatars/default-avatar.png'" 
                  alt="用户头像"
                  class="user-avatar" />
           </div>

@@ -96,6 +96,8 @@ onUnmounted(() => {
 
 <style scoped>
 .footer-banner {
+  margin-top: -40px;
+  border-radius: 40px 40px 0 0;
   width: 100%;
   background: linear-gradient(
     rgba(0, 0, 0, 0.6),
@@ -112,6 +114,7 @@ onUnmounted(() => {
 
 /* 添加一个额外的模糊层 */
 .footer-banner::before {
+  border-radius: 40px 40px 0 0;
   content: '';
   position: absolute;
   top: 0;
@@ -124,6 +127,7 @@ onUnmounted(() => {
 
 /* 确保内容在模糊层之上 */
 .footer-content {
+  border-radius: 40px 40px 0 0;
   position: relative;
   z-index: 888;
   max-width: 1200px;

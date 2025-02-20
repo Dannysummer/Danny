@@ -109,6 +109,14 @@ const router = createRouter({
         title: '友情链接'
       }
     },
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: () => import('../views/Profile.vue'),
+      meta: {
+        requiresAuth: true
+      }
+    },
     // 其他路由...
   ]
 })

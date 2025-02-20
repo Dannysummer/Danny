@@ -62,11 +62,15 @@
           <div class="model-info">
             <span class="model-name">          
               <img 
-                src="/Icon/Logo/通义千问-copy.svg" 
-                alt="通义千问" 
-                class="qwen-icon"
+                :src="currentModel === AI_MODEL.QWEN ? '/Icon/Logo/通义千问-copy.svg' : '/Icon/Logo/deepseek.svg'" 
+                :alt="currentModel === AI_MODEL.QWEN ? '通义千问' : 'DeepSeek'" 
+                class="model-icon"
               />
-              <span class="model-text">Qwen-plus</span>
+              <span class="model-text">{{ currentModel === AI_MODEL.QWEN ? 'Qwen-plus' : 'DeepSeek-V3' }}</span>
+            
+            </span>
+            <span @click="toggleModel">
+              <Icon icon="mdi:swap-horizontal" class="swap-icon"  />
             </span>
           </div>
         </div>
@@ -127,7 +131,7 @@
   import { markedHighlight } from 'marked-highlight'
   import hljs from 'highlight.js'
   import 'highlight.js/styles/atom-one-dark.css'
-  import { generateSummary as genSummary } from '../services/openai'
+  import { generateSummary as genAISummary, AI_MODEL, type AIModel } from '../services/openai'
   import QuickNav from './QuickNav.vue'
   import RecentArticles from './RecentArticles.vue'
   import CopyrightCard from './CopyrightCard.vue'
@@ -219,6 +223,9 @@
   const isGeneratingSummary = ref(false)
   const isTyping = ref(false)
   
+  // 当前使用的模型，默认使用 DEEPSEEK
+  const currentModel = ref<AIModel>(AI_MODEL.DEEPSEEK)
+  
   const typeText = (text: string) => {
     isTyping.value = true
     let index = 0
@@ -240,13 +247,31 @@
   const generateSummary = async (content: string) => {
     try {
       isGeneratingSummary.value = true
-      const summary = await genSummary(content)
+      const summary = await genAISummary(content, currentModel.value)
       typeText(summary)
     } catch (error) {
       console.error('生成摘要失败:', error)
-      aiSummary.value = '抱歉，摘要生成失败...'
+      if (error instanceof Error) {
+        // 显示错误消息
+        if (error.message.includes('402') || error.message.includes('金库空空如也')) {
+          aiSummary.value = '领主大人的金库空空如也了，用不起我了 (｡•́︿•̀｡)'
+        } else {
+          aiSummary.value = '省流：自己看吧... (っ °Д °;)っ'
+        }
+      } else {
+        aiSummary.value = '省流：自己看吧... (っ °Д °;)っ'
+      }
     } finally {
       isGeneratingSummary.value = false
+    }
+  }
+  
+  // 切换模型
+  const toggleModel = () => {
+    currentModel.value = currentModel.value === AI_MODEL.QWEN ? AI_MODEL.DEEPSEEK : AI_MODEL.QWEN
+    // 重新生成摘要
+    if (props.article.content) {
+      generateSummary(props.article.content)
     }
   }
   
@@ -1260,17 +1285,45 @@
     display: flex;
     align-items: center;
     gap: 6px;
-
-    .qwen-icon {
-      width: 24px;
-      height: 24px;
-      filter: brightness(0) invert(1);
-      margin-right: 2px;
+    cursor: cursor;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.00);
+      background-color: rgb(4, 144, 224);
     }
+  }
+  
+  .model-icon {
+    filter: brightness(0) invert(1);
+    margin-right: 2px;
+  }
 
-    .model-text {
-      line-height: 1.6;
-    }
+  /* 分别设置不同模型的图标大小 */
+  .model-name img[alt="DeepSeek"] {
+    width: 32px;
+    height: 32px;
+  }
+
+  .model-name img[alt="通义千问"] {
+    width: 24px;
+    height: 24px;
+  }
+
+  .swap-icon {
+    cursor: pointer;
+    font-size: 1.2em;
+    color: #fff!important;
+    opacity: 0.8;
+    transition: all 0.3s ease;
+  }
+
+  .model-name:hover .swap-icon {
+    opacity: 1;
+  }
+  
+  .model-text {
+    line-height: 1.6;
   }
   
   .summary-content {

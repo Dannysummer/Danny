@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 
 const props = defineProps<{
@@ -19,16 +19,44 @@ const props = defineProps<{
   }
 }>()
 
-onMounted(() => {
+let artalkCss: HTMLLinkElement | null = null
+let artalkJs: HTMLScriptElement | null = null
+
+onMounted(async () => {
+  // 加载 CSS
+  artalkCss = document.createElement('link')
+  artalkCss.rel = 'stylesheet'
+  artalkCss.href = `${import.meta.env.VITE_ARTALK_SERVER}/dist/Artalk.css`
+  document.head.appendChild(artalkCss)
+
+  // 加载 JS
+  artalkJs = document.createElement('script')
+  artalkJs.src = `${import.meta.env.VITE_ARTALK_SERVER}/dist/Artalk.js`
+  
+  // 等待 JS 加载完成后初始化
+  await new Promise<void>((resolve) => {
+    if (artalkJs) {
+      artalkJs.onload = () => resolve()
+      document.head.appendChild(artalkJs)
+    }
+  })
+
+  // 初始化 Artalk
   // @ts-ignore
   window.Artalk?.init({
     el: '#article-comments',
     pageKey: `/article/${props.article.id}`,
     pageTitle: props.article.title,
-    server: 'http://47.98.110.111',
-    site: 'Danny Blog',
+    server: import.meta.env.VITE_ARTALK_SERVER,
+    site: import.meta.env.VITE_ARTALK_SITE,
     darkMode: true
   })
+})
+
+// 清理资源
+onUnmounted(() => {
+  artalkCss?.remove()
+  artalkJs?.remove()
 })
 </script>
 

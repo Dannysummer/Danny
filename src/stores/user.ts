@@ -4,11 +4,14 @@ import { ref } from 'vue'
 // 修改接口定义
 interface UserInfo {
   username: string
+  email?: string
+  bio?: string
   avatar?: string
-  lastLoginTime?: number
-  token?: string
   role?: 'user' | 'admin' | 'super_admin'
+  lastLoginTime?: number
   permissions?: string[]
+  emailVerified?: boolean
+  token?: string
 }
 
 export const useUserStore = defineStore('user', () => {
@@ -280,7 +283,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   // Token刷新机制
-  let tokenRefreshTimer: number
+  let tokenRefreshTimer: ReturnType<typeof setInterval>
   
   const startTokenRefresh = () => {
     clearInterval(tokenRefreshTimer)

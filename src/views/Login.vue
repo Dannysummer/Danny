@@ -122,7 +122,7 @@
 
         <!-- 邮箱验证码只在注册时显示 -->
         <Transition name="fade-height">
-          <div class="input-group" v-show="!isLogin">
+          <div class="input-group" v-show="!isLogin && onEmailVerify">
             <div class="email-verify">
               <Icon icon="material-symbols:verified-user-outline" />
               <input 
@@ -268,6 +268,14 @@
         </button>
       </div>
     </div>
+
+    <!-- 自定义提示框 -->
+    <CustomAlert 
+      v-model:show="alertConfig.show"
+      :message="alertConfig.message"
+      :type="alertConfig.type"
+      :duration="alertConfig.duration"
+    />
   </div>
 </template>
 
@@ -278,6 +286,8 @@ import { useThemeStore } from '../stores/theme'
 import { useUserStore } from '../stores/user'
 import { useRouter } from 'vue-router'
 import ParticlesBackground from '../components/ParticlesBackground.vue'
+import axios from '../utils/axios'
+import CustomAlert from '../components/CustomAlert.vue'
 
 const themeStore = useThemeStore()
 const userStore = useUserStore()
@@ -313,6 +323,20 @@ const emailCountdown = ref(0)
 const confirmPasswordStrength = ref(0)
 const blockCheckInterval = ref<number>()
 const sessionCheckInterval = ref<number>()
+const onEmailVerify = ref(false)
+
+// 修改 alertConfig 的定义
+const alertConfig = ref<{
+  show: boolean
+  message: string
+  type: 'success' | 'error' | 'warning' | 'info'
+  duration: number
+}>({
+  show: false,
+  message: '',
+  type: 'info',
+  duration: 3000
+})
 
 // 根据主题切换分割线图片
 const dividerImage = computed(() => {
@@ -335,13 +359,23 @@ const validateUsername = () => {
 const validatePassword = () => {
   if (!password.value) {
     errors.value.password = '请输入密码'
-  } else if (password.value.length < 8) {
-    errors.value.password = '密码长度不能少于8个字符'
-  } else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+\-=\[\]{};:'",.<>/?]+$/.test(password.value)) {
-    errors.value.password = '密码必须包含字母和数字'
-  } else {
-    errors.value.password = ''
+    return false
   }
+  
+  // 只在注册时验证密码格式
+  if (!isLogin.value) {
+    if (password.value.length < 8) {
+      errors.value.password = '密码长度不能少于8个字符'
+      return false
+    }
+    if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+\-=\[\]{};:'",.<>/?]+$/.test(password.value)) {
+      errors.value.password = '密码必须包含字母和数字'
+      return false
+    }
+  }
+  
+  errors.value.password = ''
+  return true
 }
 
 const validateEmail = () => {
@@ -359,9 +393,14 @@ const validateForm = () => {
   validatePassword()
   if (!isLogin.value) {
     validateEmail()
-    validateConfirmPassword() // 添加确认密码验证
+    validateConfirmPassword()
     if (password.value !== confirmPassword.value) {
       errors.value.confirm = '两次输入的密码不一致'
+      return false
+    }
+    // 只在启用邮箱验证时检查验证码
+    if (onEmailVerify.value && !emailVerifyCode.value) {
+      showAlert('请输入邮箱验证码', 'warning')
       return false
     }
   }
@@ -464,19 +503,219 @@ const strengthText = computed(() => {
   return '非常强'
 })
 
-// 处理密码重置
-const handleResetPassword = async () => {
-  if (!resetEmail.value) {
-    alert('请输入邮箱地址')
+// 定义接口类型
+interface LoginData {
+  username: string
+  password: string
+  rememberMe: boolean
+  captcha?: string // 可选的验证码
+}
+
+interface RegisterData {
+  username: string
+  password: string
+  email: string
+}
+
+// 修改 handleSubmit 方法
+const handleSubmit = async () => {
+  if (!validateForm()) {
+    showAlert('请完善所有必填信息并确保输入正确', 'warning')
+    return
+  }
+
+  // 检查是否同意协议
+  if (!isLogin.value && !agreeToTerms.value) {
+    showAlert('请阅读并同意用户协议和隐私政策', 'warning')
+    return
+  }
+
+  // 只在登录时检查图片验证码
+  if (isLogin.value && showCaptcha.value && captcha.value !== captchaText.value) {
+    showAlert('验证码错误', 'error')
+    refreshCaptcha()
+    return
+  }
+
+  // 检查登录频率限制
+  if (isLogin.value) {
+    const now = Date.now()
+    if (loginBlocked.value && now < blockEndTime.value) {
+      const remainingMinutes = Math.ceil((blockEndTime.value - now) / 60000)
+      showAlert(`账号已被临时封禁，请在 ${remainingMinutes} 分钟后重试`, 'error')
+      return
+    }
+
+    if (loginAttempts.value >= 5 && now - lastLoginAttempt.value < 15 * 60 * 1000) {
+      loginBlocked.value = true
+      blockEndTime.value = now + 15 * 60 * 1000
+      showAlert('登录尝试次数过多，账号已被临时封禁15分钟', 'error')
+      return
+    }
+  }
+  
+  try {
+    if (isLogin.value) {
+      // 登录请求数据
+      const loginData: LoginData = {
+        username: username.value,
+        password: password.value,
+        rememberMe: rememberMe.value
+      }
+      
+      // 如果需要验证码，添加到请求数据中
+      if (showCaptcha.value) {
+        loginData.captcha = captcha.value
+      }
+
+      // 发送登录请求
+      const response = await axios.post('/api/auth/login', loginData)
+      
+      if (response.data.success) {
+        // 更新用户信息到 store
+        userStore.userInfo = {
+          username: username.value,
+          avatar: response.data.userInfo?.avatar || '/avatars/default-avatar.png',
+          role: response.data.userInfo?.role || '用户'
+        }
+        
+        // 设置登录状态
+        userStore.isLoggedIn = true
+        
+        if (rememberMe.value) {
+          localStorage.setItem('rememberedUser', JSON.stringify({
+            username: username.value,
+            savedTime: Date.now()
+          }))
+        }
+        
+        loginAttempts.value = 0
+        showAlert('登录成功，欢迎回来！', 'success')
+        router.push('/')
+      } else {
+        if (response.data.status === 401) {
+          // 密码错误时显示密码规则提示
+          showAlert('密码错误！密码应包含：\n1. 至少8个字符\n2. 包含字母和数字\n3. 可以包含特殊字符', 'error')
+        } else {
+          throw new Error(response.data.message || '登录失败')
+        }
+      }
+      
+    } else {
+      // 注册请求数据
+      const registerData: RegisterData = {
+        username: username.value,
+        password: password.value,
+        email: email.value
+      }
+
+      // 打印注册数据
+      console.log('注册数据：', JSON.stringify(registerData, null, 2))
+
+      try {
+        const response = await axios.post('/api/auth/register', registerData)
+        if (response.data.success) {
+          // 存储 token（如果后端返回）
+          if (response.data.token) {
+            // 使用 httpOnly cookie 方式，不需要手动存储 token
+            // token 由后端通过 Set-Cookie 头设置
+            
+            // 可以存储其他非敏感信息
+            localStorage.setItem('userInfo', JSON.stringify({
+              username: username.value,
+              lastLoginTime: Date.now()
+            }))
+          }
+          
+          showAlert('注册成功！请使用新账号登录')
+          isLogin.value = true
+          username.value = ''
+          password.value = ''
+          email.value = ''
+        }
+      } catch (error: any) {
+        if (error.message === 'Network Error') {
+          showAlert('连接服务器失败，可能原因：\n1. 后端服务器 (localhost:8088) 未启动\n2. 网络连接异常\n3. 后端 CORS 配置错误', 'error')
+          console.error('Network Error Details:', error)
+        } else if (error.response) {
+          // 处理后端返回的错误
+          switch (error.response.status) {
+            case 400:
+              showAlert('注册失败：' + (error.response.data.message || '请求参数错误'), 'error')
+              break
+            case 409:
+              showAlert('注册失败：' + error.response.data.message, 'error')
+              break
+            case 500:
+              showAlert('注册失败：服务器内部错误，请联系管理员', 'error')
+              break
+            default:
+              showAlert('注册失败：' + (error.response.data.message || '未知错误'), 'error')
+          }
+        } else {
+          showAlert(error.message || '操作失败，请重试', 'error')
+        }
+      }
+    }
+  } catch (error: any) {
+    if (error.message === 'Network Error') {
+      showAlert('连接服务器失败，请检查：\n1. 后端服务器 (localhost:8088) 是否已启动\n2. 网络连接是否正常', 'error')
+      console.error('Network Error Details:', error)
+    } else {
+      showAlert(error.response?.data?.message || error.message || '操作失败，请重试', 'error')
+    }
+  }
+}
+
+// 修改发送邮箱验证码方法
+const sendEmailVerifyCode = async () => {
+  if (!email.value || errors.value.email) {
+    showAlert('请输入有效的邮箱地址', 'warning')
     return
   }
   
   try {
-    // TODO: 调用后端 API 发送重置邮件
-    alert('重置链接已发送到您的邮箱')
-    showResetPassword.value = false
+    const response = await axios.post('/api/auth/send-email-code', {
+      email: email.value
+    })
+    
+    if (response.data.success) {
+      emailCountdown.value = 60
+      const timer = setInterval(() => {
+        emailCountdown.value--
+        if (emailCountdown.value <= 0) {
+          clearInterval(timer)
+        }
+      }, 1000)
+      showAlert('验证码已发送到您的邮箱')
+    } else {
+      throw new Error(response.data.message || '发送失败')
+    }
   } catch (error: any) {
-    alert(error.message)
+    showAlert(error.message || '发送验证码失败，请重试', 'error')
+  }
+}
+
+// 修改重置密码方法
+const handleResetPassword = async () => {
+  if (!resetEmail.value) {
+    showAlert('请输入邮箱地址', 'warning')
+    return
+  }
+  
+  try {
+    const response = await axios.post('/api/auth/reset-password', {
+      email: resetEmail.value
+    })
+    
+    if (response.data.success) {
+      showAlert('重置链接已发送到您的邮箱')
+      showResetPassword.value = false
+    } else {
+      throw new Error(response.data.message || '重置密码失败')
+    }
+  } catch (error: any) {
+    showAlert(error.message || '重置密码失败，请重试', 'error')
   }
 }
 
@@ -485,64 +724,6 @@ const showCaptcha = computed(() => {
   // 只在登录时且需要验证码时显示
   return isLogin.value && userStore.needCaptcha(username.value)
 })
-
-// 修改登录提交方法
-const handleSubmit = async () => {
-  if (!validateForm()) {
-    alert('请完善所有必填信息并确保输入正确')
-    return
-  }
-
-  // 检查是否同意协议
-  if (!isLogin.value && !agreeToTerms.value) {
-    alert('请阅读并同意用户协议和隐私政策')
-    return
-  }
-
-  // 只在登录时检查图片验证码
-  if (isLogin.value && showCaptcha.value && captcha.value !== captchaText.value) {
-    alert('验证码错误')
-    refreshCaptcha()
-    return
-  }
-
-  // 检查登录频率限制
-  if (isLogin.value) {
-    const now = Date.now()
-    // 检查是否在封禁时间内
-    if (loginBlocked.value && now < blockEndTime.value) {
-      const remainingMinutes = Math.ceil((blockEndTime.value - now) / 60000)
-      alert(`账号已被临时封禁，请在 ${remainingMinutes} 分钟后重试`)
-      return
-    }
-
-    if (loginAttempts.value >= 5 && now - lastLoginAttempt.value < 15 * 60 * 1000) {
-      loginBlocked.value = true
-      blockEndTime.value = now + 15 * 60 * 1000
-      alert('登录尝试次数过多，账号已被临时封禁15分钟')
-      return
-    }
-  }
-  
-  try {
-    if (isLogin.value) {
-      await userStore.login(username.value, password.value, rememberMe.value)
-      loginAttempts.value = 0
-      alert('登录成功，欢迎回来！')
-    } else {
-      await userStore.register(username.value, password.value, email.value)
-      alert('注册成功！请使用新账号登录')
-      isLogin.value = true
-    }
-    router.push('/')
-  } catch (error: any) {
-    if (isLogin.value) {
-      loginAttempts.value++
-      lastLoginAttempt.value = Date.now()
-      // ... 其他错误处理 ...
-    }
-  }
-}
 
 // 定时检查并解除封禁
 const checkBlockStatus = () => {
@@ -557,7 +738,7 @@ const checkBlockStatus = () => {
 const checkSessionStatus = () => {
   if (userStore.isLoggedIn && !userStore.checkSession()) {
     userStore.logout()
-    alert('会话已过期，请重新登录')
+    showAlert('会话已过期，请重新登录', 'error')
     router.push('/login')
   }
 }
@@ -579,7 +760,7 @@ watch(username, (newValue) => {
 onMounted(() => {
   const rememberedUserStr = localStorage.getItem('rememberedUser')
   if (rememberedUserStr) {
-    const { username: savedUsername, password: savedPassword, savedTime } = JSON.parse(rememberedUserStr)
+    const { username: savedUsername, savedTime } = JSON.parse(rememberedUserStr)
     
     // 检查是否超过15天
     const daysSinceSaved = (Date.now() - savedTime) / (24 * 60 * 60 * 1000)
@@ -591,7 +772,6 @@ onMounted(() => {
     // 设置rememberMe为true，这样watch不会触发验证码刷新
     rememberMe.value = true
     username.value = savedUsername
-    password.value = savedPassword
     
     // 如果设置了记住密码且未超过15天，自动登录
     if (!userStore.isLoggedIn) {
@@ -673,27 +853,6 @@ watch(password, () => {
   }
 })
 
-// 在 script setup 中添加 sendEmailVerifyCode 方法
-const sendEmailVerifyCode = async () => {
-  if (!email.value || errors.value.email) {
-    alert('请输入有效的邮箱地址')
-    return
-  }
-  
-  try {
-    // TODO: 调用后端 API 发送验证码
-    emailCountdown.value = 60
-    const timer = setInterval(() => {
-      emailCountdown.value--
-      if (emailCountdown.value <= 0) {
-        clearInterval(timer)
-      }
-    }, 1000)
-  } catch (error: any) {
-    alert(error.message)
-  }
-}
-
 // 添加密码框焦点处理函数
 const handlePasswordFocus = () => {
   // 触发一个自定义事件，确保 live2d 模型能捕获到
@@ -705,6 +864,16 @@ const handlePasswordFocus = () => {
 const handlePasswordBlur = () => {
   const event = new Event('focusout', { bubbles: true });
   document.activeElement?.dispatchEvent(event);
+}
+
+// 在 script setup 中添加显示提示的方法
+const showAlert = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+  alertConfig.value = {
+    show: true,
+    message,
+    type,
+    duration: 3000
+  }
 }
 </script>
 
@@ -1003,7 +1172,7 @@ const handlePasswordBlur = () => {
 /* 密码强度指示器样式 */
 .password-strength {
   position: absolute;
-  bottom: -35px;
+  bottom: -38px;
   left: 0;
   width: 100%;
   margin: 15px 0;
@@ -1416,11 +1585,14 @@ input:-webkit-autofill:active {
 .input-group input:focus ~ label,
 .input-group input:not(:placeholder-shown) ~ label {
   top: 0;
-  transform: translateY(-50%) scale(0.8);
+  font-size: 0.8rem;
+  transform: translateY(-10px);
   color: #87CEEB;
   background: transparent;
-  left: 0px;
+  left: 10px;
   text-shadow: 0 0 10px rgba(135, 206, 235, 0.8);
+  text-align: left;
+  padding: 0;
 }
 
 /* 确保输入框文本不会与图标重叠 */

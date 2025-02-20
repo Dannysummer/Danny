@@ -1,37 +1,13 @@
-version: '3'
+version: '3.8'
 services:
   frontend:
-    build: ./blog-frontend
+    build: .
+    container_name: danny-blog-frontend
     ports:
-      - "80:80"
-      
-  backend:
-    build: ./blog-backend
-    ports:
-      - "8088:8088"
-      
-  mysql:
-    image: mysql:8.0
-    
-  redis:
-    image: redis:7.2.3 
-
-  artalk:
-    container_name: artalk
-    image: artalk/artalk-go
+      - "3000:80"
     restart: unless-stopped
-    ports:
-      - 8081:23366
-    volumes:
-      - ./data:/data
-    environment:
-      - TZ=Asia/Shanghai
-      - ATK_LOCALE=zh-CN
-      - ATK_SITE_DEFAULT=Danny Blog
-      - ATK_SITE_URL=http://47.98.110.111
-      - FIBER_BIND_ADDRESS=0.0.0.0
-      # CORS 配置
-      - ARTALK_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://47.98.110.111
-      - ARTALK_CORS_ALLOWED_METHODS=GET,POST,PUT,DELETE,OPTIONS
-      - ARTALK_CORS_ALLOWED_HEADERS=Content-Type,Authorization,X-Requested-With
-      - ARTALK_CORS_ALLOW_CREDENTIALS=true 
+
+volumes:
+  mysql_data:
+  redis_data:
+  artalk_data: 

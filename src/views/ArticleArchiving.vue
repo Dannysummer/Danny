@@ -621,6 +621,7 @@ html.dark-theme .nav-item.active {
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
+  margin-bottom: 60px;
   width: 100%;
 }
 

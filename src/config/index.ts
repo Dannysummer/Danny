@@ -1,6 +1,8 @@
 export const config = {
   openai: {
-    apiKey: import.meta.env.VITE_QWEN_API_KEY,
-    apiUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
+    qwenKey: import.meta.env.VITE_QWEN_KEY,
+    qwenUrl: import.meta.env.VITE_QWEN_URL,
+    deepseekKey: import.meta.env.VITE_DEEPSEEK_KEY,
+    deepseekUrl: import.meta.env.VITE_DEEPSEEK_URL
   }
 } 
