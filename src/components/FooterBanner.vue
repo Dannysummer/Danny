@@ -16,7 +16,7 @@
           <span class="time-unit">{{ minutes }}</span>分
           <span class="time-unit">{{ seconds }}</span>秒
         </div>
-        <div class="text-line">本网站由 Dansela 独立开发 | ICP备20250113号</div>
+        <div class="text-line">本网站由 Dansela 独立开发 | 蜀ICP备2025124170号-1</div>
         <div class="disclaimer-carousel">
           <transition-group name="slide">
             <div class="carousel-item" v-show="currentIndex === 0" :key="0">

@@ -40,7 +40,12 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: Login
+      component: Login,
+      meta: {
+        title: '登录页',
+        hideFooter: true,
+        hideLoading: true
+      }
     },
     {
       path: '/essays',

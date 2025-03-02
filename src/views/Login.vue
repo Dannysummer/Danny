@@ -122,24 +122,22 @@
 
         <!-- 邮箱验证码只在注册时显示 -->
         <Transition name="fade-height">
-          <div class="input-group" v-show="!isLogin && onEmailVerify">
-            <div class="email-verify">
-              <Icon icon="material-symbols:verified-user-outline" />
-              <input 
-                type="text" 
-                v-model="emailVerifyCode"
-                placeholder=" "
-                maxlength="6"
-              />
-              <label>请输入邮箱送来的友令</label>
-              <button 
-                class="send-code-btn" 
-                @click="sendEmailVerifyCode"
-                :disabled="emailCountdown > 0"
-              >
-                {{ emailCountdown > 0 ? `${emailCountdown}s` : '获取友令' }}
-              </button>
-            </div>
+          <div class="input-group" v-if="!isLogin && onEmailVerify">
+            <Icon icon="material-symbols:verified-user-outline" />
+            <input 
+              type="text" 
+              v-model="emailVerifyCode"
+              placeholder=" "
+              maxlength="6"
+            />
+            <label>请输入邮箱验证码</label>
+            <button 
+              class="send-code-btn" 
+              @click="sendEmailVerifyCode"
+              :disabled="emailCountdown > 0"
+            >
+              {{ emailCountdown > 0 ? `${emailCountdown}s` : '获取验证码' }}
+            </button>
           </div>
         </Transition>
 
@@ -199,15 +197,39 @@
       <div class="modal-content">
         <h3>找回密码</h3>
         <div class="input-group">
-          <Icon icon="material-symbols:person-outline" />
+          <Icon icon="material-symbols:mail-outline" />
+          <input 
+            type="email" 
+            v-model="resetEmail" 
+            placeholder=" "
+          />
+          <label>请输入注册邮箱</label>
+        </div>
+        
+        <!-- 添加验证码输入框 -->
+        <div class="input-group" v-if="showResetCode">
+          <Icon icon="material-symbols:verified-user-outline" />
           <input 
             type="text" 
-            v-model="resetEmail" 
-            placeholder="请输入注册邮箱"
+            v-model="resetCode"
+            placeholder=" "
+            maxlength="6"
           />
+          <label>请输入验证码</label>
+          <button 
+            class="send-code-btn" 
+            @click="sendResetCode"
+            :disabled="resetCountdown > 0 || isLoading"
+          >
+            <span v-if="isLoading" class="loading-spinner"></span>
+            {{ resetCountdown > 0 ? `${resetCountdown}s` : isLoading ? '发送中...' : '获取验证码' }}
+          </button>
         </div>
+        
         <div class="modal-buttons">
-          <button @click="handleResetPassword" class="submit-btn">发送重置链接</button>
+          <button @click="handleResetPassword" class="submit-btn">
+            {{ showResetCode ? '重置密码' : '下一步' }}
+          </button>
           <button @click="showResetPassword = false" class="cancel-btn">取消</button>
         </div>
       </div>
@@ -269,6 +291,13 @@
       </div>
     </div>
 
+    <!-- 添加登录成功的问候语 -->
+    <Transition name="greeting">
+      <div v-if="showLoginGreeting" class="greeting-text">
+        {{ loginGreeting }}
+      </div>
+    </Transition>
+
     <!-- 自定义提示框 -->
     <CustomAlert 
       v-model:show="alertConfig.show"
@@ -280,7 +309,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useThemeStore } from '../stores/theme'
 import { useUserStore } from '../stores/user'
@@ -323,7 +352,13 @@ const emailCountdown = ref(0)
 const confirmPasswordStrength = ref(0)
 const blockCheckInterval = ref<number>()
 const sessionCheckInterval = ref<number>()
-const onEmailVerify = ref(false)
+const onEmailVerify = ref(true)
+const showLoginGreeting = ref(false)
+const loginGreeting = ref('')
+const resetCode = ref('')
+const showResetCode = ref(false)
+const resetCountdown = ref(0)
+const isLoading = ref(false)
 
 // 修改 alertConfig 的定义
 const alertConfig = ref<{
@@ -417,47 +452,40 @@ const generateCaptcha = () => {
   if (!ctx) return
   
   // 清空画布
-  ctx.clearRect(0, 0, canvas.width, canvas.height) // 完全清除画布
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  
+  // 设置背景
   ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   
-  // 生成随机验证码（包含大小写字母和数字）
+  // 生成4位验证码
   const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
   let code = ''
+  
   for (let i = 0; i < 4; i++) {
     const char = chars[Math.floor(Math.random() * chars.length)]
     code += char
     
-    // 随机颜色和位置
+    // 随机颜色
     const hue = Math.random() * 360
-    const saturation = 70 + Math.random() * 30 // 70-100%
-    const lightness = 60 + Math.random() * 20 // 60-80%
-    ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`
-    ctx.font = 'bold 24px Arial'
+    ctx.fillStyle = `hsl(${hue}, 70%, 70%)`
+    
+    // 随机字体大小和旋转
+    const fontSize = 24 + Math.random() * 8
+    const rotation = (Math.random() - 0.5) * 0.3
+    
+    ctx.font = `bold ${fontSize}px Arial`
     ctx.textBaseline = 'middle'
-    // 添加随机旋转
+    
+    // 绘制文字
     ctx.save()
-    const rotation = (Math.random() - 0.5) * 0.3 // -0.15 到 0.15 弧度
     ctx.translate(20 * i + 15, 20)
     ctx.rotate(rotation)
     ctx.fillText(char, 0, 0)
     ctx.restore()
   }
   
-  // 添加干扰线
-  ctx.lineWidth = 1
-  for (let i = 0; i < 3; i++) {
-    ctx.beginPath()
-    ctx.strokeStyle = `rgba(255, 255, 255, ${Math.random() * 0.2})`
-    const x1 = Math.random() * canvas.width
-    const y1 = Math.random() * canvas.height
-    const x2 = Math.random() * canvas.width
-    const y2 = Math.random() * canvas.height
-    ctx.moveTo(x1, y1)
-    ctx.lineTo(x2, y2)
-    ctx.stroke()
-  }
-  
+  // 保存验证码文本
   captchaText.value = code
 }
 
@@ -511,11 +539,12 @@ interface LoginData {
   captcha?: string // 可选的验证码
 }
 
-interface RegisterData {
-  username: string
-  password: string
-  email: string
-}
+// interface RegisterData {
+//   username: string
+//   password: string
+//   email: string
+//   emailVerifyCode: string
+// }
 
 // 修改 handleSubmit 方法
 const handleSubmit = async () => {
@@ -531,10 +560,16 @@ const handleSubmit = async () => {
   }
 
   // 只在登录时检查图片验证码
-  if (isLogin.value && showCaptcha.value && captcha.value !== captchaText.value) {
-    showAlert('验证码错误', 'error')
-    refreshCaptcha()
-    return
+  if (isLogin.value && showCaptcha.value) {
+    if (!captcha.value) {
+      showAlert('请输入图片验证码', 'warning')
+      return
+    }
+    if (captcha.value.toLowerCase() !== captchaText.value.toLowerCase()) {
+      showAlert('图片验证码错误', 'error')
+      refreshCaptcha()
+      return
+    }
   }
 
   // 检查登录频率限制
@@ -572,6 +607,20 @@ const handleSubmit = async () => {
       const response = await axios.post('/api/auth/login', loginData)
       
       if (response.data.success) {
+        // 设置问候语
+        loginGreeting.value = '登录成功！欢迎回来~'
+        
+        // 显示问候语
+        setTimeout(() => {
+          showLoginGreeting.value = true
+          
+          // 2秒后隐藏问候语并跳转
+          setTimeout(() => {
+            showLoginGreeting.value = false
+            router.push('/')
+          }, 2000)
+        }, 100)
+        
         // 更新用户信息到 store
         userStore.userInfo = {
           username: username.value,
@@ -591,7 +640,6 @@ const handleSubmit = async () => {
         
         loginAttempts.value = 0
         showAlert('登录成功，欢迎回来！', 'success')
-        router.push('/')
       } else {
         if (response.data.status === 401) {
           // 密码错误时显示密码规则提示
@@ -602,67 +650,52 @@ const handleSubmit = async () => {
       }
       
     } else {
-      // 注册请求数据
-      const registerData: RegisterData = {
-        username: username.value,
-        password: password.value,
-        email: email.value
-      }
+      // 注册逻辑
+      const response = await fetch('http://localhost:8088/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: username.value,
+          password: password.value,
+          email: email.value,
+          emailVerifyCode: emailVerifyCode.value
+        })
+      })
 
-      // 打印注册数据
-      console.log('注册数据：', JSON.stringify(registerData, null, 2))
-
-      try {
-        const response = await axios.post('/api/auth/register', registerData)
-        if (response.data.success) {
-          // 存储 token（如果后端返回）
-          if (response.data.token) {
-            // 使用 httpOnly cookie 方式，不需要手动存储 token
-            // token 由后端通过 Set-Cookie 头设置
-            
-            // 可以存储其他非敏感信息
-            localStorage.setItem('userInfo', JSON.stringify({
-              username: username.value,
-              lastLoginTime: Date.now()
-            }))
-          }
-          
-          showAlert('注册成功！请使用新账号登录')
-          isLogin.value = true
-          username.value = ''
-          password.value = ''
-          email.value = ''
-        }
-      } catch (error: any) {
-        if (error.message === 'Network Error') {
-          showAlert('连接服务器失败，可能原因：\n1. 后端服务器 (localhost:8088) 未启动\n2. 网络连接异常\n3. 后端 CORS 配置错误', 'error')
-          console.error('Network Error Details:', error)
-        } else if (error.response) {
-          // 处理后端返回的错误
-          switch (error.response.status) {
-            case 400:
-              showAlert('注册失败：' + (error.response.data.message || '请求参数错误'), 'error')
-              break
-            case 409:
-              showAlert('注册失败：' + error.response.data.message, 'error')
-              break
-            case 500:
-              showAlert('注册失败：服务器内部错误，请联系管理员', 'error')
-              break
-            default:
-              showAlert('注册失败：' + (error.response.data.message || '未知错误'), 'error')
-          }
-        } else {
-          showAlert(error.message || '操作失败，请重试', 'error')
-        }
+      const data = await response.json()
+      if (data.success) {
+        showAlert('注册成功！正在为您自动登录...', 'success')
+        
+        // 保存注册的用户名和密码
+        const registeredUsername = username.value
+        const registeredPassword = password.value
+        
+        // 清空表单
+        email.value = ''
+        emailVerifyCode.value = ''
+        
+        // 切换到登录模式
+        isLogin.value = true
+        
+        // 自动填充用户名和密码
+        nextTick(() => {
+          username.value = registeredUsername
+          password.value = registeredPassword
+          // 生成新的验证码
+          generateCaptcha()
+        })
+      } else {
+        throw new Error(data.message || '注册失败')
       }
     }
   } catch (error: any) {
-    if (error.message === 'Network Error') {
-      showAlert('连接服务器失败，请检查：\n1. 后端服务器 (localhost:8088) 是否已启动\n2. 网络连接是否正常', 'error')
-      console.error('Network Error Details:', error)
+    console.error('操作失败:', error)
+    if (error.message === 'Failed to fetch') {
+      showAlert('连接服务器失败，请检查网络连接', 'error')
     } else {
-      showAlert(error.response?.data?.message || error.message || '操作失败，请重试', 'error')
+      showAlert(error.message || '操作失败，请重试', 'error')
     }
   }
 }
@@ -675,11 +708,18 @@ const sendEmailVerifyCode = async () => {
   }
   
   try {
-    const response = await axios.post('/api/auth/send-email-code', {
-      email: email.value
+    const response = await fetch('http://localhost:8088/api/auth/send-email-code', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        email: email.value 
+      })
     })
     
-    if (response.data.success) {
+    const data = await response.json()
+    if (data.success) {
       emailCountdown.value = 60
       const timer = setInterval(() => {
         emailCountdown.value--
@@ -689,10 +729,61 @@ const sendEmailVerifyCode = async () => {
       }, 1000)
       showAlert('验证码已发送到您的邮箱')
     } else {
-      throw new Error(response.data.message || '发送失败')
+      throw new Error(data.message || '发送验证码失败')
     }
   } catch (error: any) {
+    console.error('发送验证码失败:', error)
     showAlert(error.message || '发送验证码失败，请重试', 'error')
+  }
+}
+
+// 修改发送重置密码验证码方法
+const sendResetCode = async () => {
+  if (!resetEmail.value) {
+    showAlert('请输入邮箱地址', 'warning')
+    return
+  }
+
+  if (isLoading.value) return // 防止重复点击
+
+  isLoading.value = true
+  showResetCode.value = true
+  resetCountdown.value = 60
+  
+  // 启动倒计时
+  const timer = setInterval(() => {
+    resetCountdown.value--
+    if (resetCountdown.value <= 0) {
+      clearInterval(timer)
+    }
+  }, 1000)
+
+  try {
+    // 异步发送请求
+    const response = await fetch('http://localhost:8088/api/auth/send-email-code', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: resetEmail.value
+      })
+    })
+
+    const data = await response.json()
+    if (data.success) {
+      showAlert('验证码已发送到您的邮箱')
+    } else {
+      throw new Error(data.message || '发送验证码失败')
+    }
+  } catch (error: any) {
+    console.error('发送验证码失败:', error)
+    showAlert(error.message || '发送验证码失败，请重试', 'error')
+    // 发送失败时重置倒计时
+    resetCountdown.value = 0
+    clearInterval(timer)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -702,22 +793,55 @@ const handleResetPassword = async () => {
     showAlert('请输入邮箱地址', 'warning')
     return
   }
-  
+
+  if (!showResetCode.value) {
+    // 第一步：发送验证码
+    await sendResetCode()
+    return
+  }
+
+  if (!resetCode.value) {
+    showAlert('请输入验证码', 'warning')
+    return
+  }
+
   try {
-    const response = await axios.post('/api/auth/reset-password', {
-      email: resetEmail.value
+    const response = await fetch('http://localhost:8088/api/auth/reset-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: resetEmail.value,
+        code: resetCode.value
+      })
     })
-    
-    if (response.data.success) {
-      showAlert('重置链接已发送到您的邮箱')
+
+    const data = await response.json()
+    if (data.success) {
+      showAlert('密码重置成功，新密码已发送到您的邮箱')
       showResetPassword.value = false
+      // 清空表单
+      resetEmail.value = ''
+      resetCode.value = ''
+      showResetCode.value = false
     } else {
-      throw new Error(response.data.message || '重置密码失败')
+      throw new Error(data.message || '重置密码失败')
     }
   } catch (error: any) {
     showAlert(error.message || '重置密码失败，请重试', 'error')
   }
 }
+
+// 关闭模态框时重置状态
+watch(showResetPassword, (newVal) => {
+  if (!newVal) {
+    resetEmail.value = ''
+    resetCode.value = ''
+    showResetCode.value = false
+    resetCountdown.value = 0
+  }
+})
 
 // 计算是否显示验证码
 const showCaptcha = computed(() => {
@@ -758,27 +882,22 @@ watch(username, (newValue) => {
 
 // 初始化记住的用户信息
 onMounted(() => {
+  // 立即生成验证码
+  generateCaptcha()
+  
+  // 检查是否有记住的用户信息
   const rememberedUserStr = localStorage.getItem('rememberedUser')
   if (rememberedUserStr) {
-    const { username: savedUsername, savedTime } = JSON.parse(rememberedUserStr)
-    
-    // 检查是否超过15天
-    const daysSinceSaved = (Date.now() - savedTime) / (24 * 60 * 60 * 1000)
-    if (daysSinceSaved >= 15) {
-      localStorage.removeItem('rememberedUser')
-      return
-    }
-
-    // 设置rememberMe为true，这样watch不会触发验证码刷新
-    rememberMe.value = true
-    username.value = savedUsername
-    
-    // 如果设置了记住密码且未超过15天，自动登录
-    if (!userStore.isLoggedIn) {
-      handleSubmit()
+    try {
+      const rememberedUser = JSON.parse(rememberedUserStr)
+      username.value = rememberedUser.username
+      password.value = rememberedUser.password
+      rememberMe.value = true
+    } catch (e) {
+      console.error('解析记住的用户信息失败:', e)
     }
   }
-  generateCaptcha()
+
   blockCheckInterval.value = window.setInterval(checkBlockStatus, 60000)
   sessionCheckInterval.value = window.setInterval(checkSessionStatus, 60000)
 
@@ -797,8 +916,9 @@ onMounted(() => {
 // 切换登录/注册时重置验证码
 const toggleLoginMode = () => {
   isLogin.value = !isLogin.value
-  if (!isLogin.value || userStore.needCaptcha(username.value)) {
-    refreshCaptcha()
+  // 切换到登录模式时重新生成验证码
+  if (isLogin.value) {
+    generateCaptcha()
   }
 }
 
@@ -1658,5 +1778,101 @@ input:-webkit-autofill:active {
 /* 当有错误提示时，调整输入框右侧内边距 */
 .input-group input.has-error {
   padding-right: 120px;
+}
+
+/* 添加问候语样式 */
+.greeting-text {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 1.2rem;
+  text-align: center;
+  padding: 12px 25px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+/* 问候语动画 */
+.greeting-enter-active {
+  animation: greetingIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.greeting-leave-active {
+  animation: greetingOut 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes greetingIn {
+  from {
+    transform: translate(-50%, -150%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes greetingOut {
+  from {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -150%);
+    opacity: 0;
+  }
+}
+
+/* 添加加载动画样式 */
+.loading-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s linear infinite;
+  margin-right: 4px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 修改发送验证码按钮样式 */
+.send-code-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px 12px;
+  background: rgba(135, 206, 235, 0.8);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px; /* 防止按钮宽度变化 */
+}
+
+.send-code-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.send-code-btn:not(:disabled):hover {
+  background: rgba(135, 206, 235, 0.9);
 }
 </style> 
