@@ -305,6 +305,59 @@
       :type="alertConfig.type"
       :duration="alertConfig.duration"
     />
+
+    <!-- 添加超级管理员选择模态框 -->
+    <div class="modal" v-if="showAdminOptions" @click.self="showAdminOptions = false">
+      <div class="modal-content">
+        <h3>欢迎，超级管理员</h3>
+        <p class="admin-welcome-text">您可以选择进入首页或管理后台</p>
+        <div class="modal-buttons admin-options">
+          <button @click="goToHome" class="home-btn">
+            <Icon icon="mdi:home" />
+            进入首页
+          </button>
+          <button @click="showAdminVerify = true; showAdminOptions = false" class="admin-btn">
+            <Icon icon="mdi:shield-account" />
+            进入管理后台
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加管理员邮箱验证模态框 -->
+    <div class="modal" v-if="showAdminVerify" @click.self="showAdminVerify = false">
+      <div class="modal-content">
+        <h3>安全验证</h3>
+        <p class="verify-text">为了保障您的账号安全，请进行邮箱验证</p>
+        
+        <div class="input-group">
+          <Icon icon="material-symbols:verified-user-outline" />
+          <input 
+            type="text" 
+            v-model="adminVerifyCode"
+            placeholder=" "
+            maxlength="6"
+          />
+          <label>请输入验证码</label>
+          <button 
+            class="send-code-btn" 
+            @click="sendAdminVerifyCode"
+            :disabled="adminVerifyCountdown > 0 || adminVerifyLoading"
+          >
+            <span v-if="adminVerifyLoading" class="loading-spinner"></span>
+            {{ adminVerifyCountdown > 0 ? `${adminVerifyCountdown}s` : adminVerifyLoading ? '发送中...' : '获取验证码' }}
+          </button>
+        </div>
+        
+        <div class="modal-buttons">
+          <button @click="verifyAdminCode" class="submit-btn" :disabled="adminVerifyLoading">
+            验证并进入
+          </button>
+          <button @click="showAdminVerify = false" class="cancel-btn">取消</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -359,6 +412,13 @@ const resetCode = ref('')
 const showResetCode = ref(false)
 const resetCountdown = ref(0)
 const isLoading = ref(false)
+
+// 添加管理员相关的状态
+const showAdminOptions = ref(false)
+const showAdminVerify = ref(false)
+const adminVerifyCode = ref('')
+const adminVerifyCountdown = ref(0)
+const adminVerifyLoading = ref(false)
 
 // 修改 alertConfig 的定义
 const alertConfig = ref<{
@@ -610,22 +670,15 @@ const handleSubmit = async () => {
         // 设置问候语
         loginGreeting.value = '登录成功！欢迎回来~'
         
-        // 显示问候语
-        setTimeout(() => {
-          showLoginGreeting.value = true
-          
-          // 2秒后隐藏问候语并跳转
-          setTimeout(() => {
-            showLoginGreeting.value = false
-            router.push('/')
-          }, 2000)
-        }, 100)
+        // 获取用户角色 - 修正从正确的位置获取
+        const userRole = response.data.data?.role || 'user'
         
         // 更新用户信息到 store
         userStore.userInfo = {
           username: username.value,
-          avatar: response.data.userInfo?.avatar || '/avatars/default-avatar.png',
-          role: response.data.userInfo?.role || '用户'
+          avatar: response.data.data?.avatar || '/avatars/default-avatar.png',
+          role: userRole,
+          email: response.data.data?.email || ''  // 保存邮箱以便后续验证
         }
         
         // 设置登录状态
@@ -640,6 +693,24 @@ const handleSubmit = async () => {
         
         loginAttempts.value = 0
         showAlert('登录成功，欢迎回来！', 'success')
+        
+        // 检查是否为超级管理员
+        if (userRole === 'superAdmin') {
+          // 显示选项模态框
+          showAdminOptions.value = true
+        } else {
+          // 普通用户登录成功后的处理
+          // 显示问候语
+          setTimeout(() => {
+            showLoginGreeting.value = true
+            
+            // 2秒后隐藏问候语并跳转
+            setTimeout(() => {
+              showLoginGreeting.value = false
+              router.push('/')
+            }, 2000)
+          }, 100)
+        }
       } else {
         if (response.data.status === 401) {
           // 密码错误时显示密码规则提示
@@ -993,6 +1064,124 @@ const showAlert = (message: string, type: 'success' | 'error' | 'warning' | 'inf
     message,
     type,
     duration: 3000
+  }
+}
+
+// 进入首页
+const goToHome = () => {
+  showAdminOptions.value = false
+  
+  // 显示问候语
+  setTimeout(() => {
+    showLoginGreeting.value = true
+    
+    // 2秒后隐藏问候语并跳转
+    setTimeout(() => {
+      showLoginGreeting.value = false
+      router.push('/')
+    }, 2000)
+  }, 100)
+}
+
+// 发送管理员验证码
+const sendAdminVerifyCode = async () => {
+  try {
+    adminVerifyLoading.value = true
+    
+    // 获取用户的邮箱
+    const userEmail = userStore.userInfo?.email
+    
+    if (!userEmail) {
+      // 如果没有邮箱，从后端获取
+      const response = await fetch('http://localhost:8088/api/user/profile', {
+        method: 'GET',
+        credentials: 'include'
+      })
+      
+      const data = await response.json()
+      if (!data.success || !data.data.email) {
+        throw new Error('无法获取您的邮箱信息')
+      }
+    }
+    
+    // 发送验证码 - 使用正确的邮件验证码接口
+    const response = await fetch('http://localhost:8088/api/auth/send-email-code', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        email: userStore.userInfo?.email,
+        type: 'admin_verify'  // 指定验证类型为管理员验证
+      })
+    })
+    
+    const data = await response.json()
+    if (data.success) {
+      showAlert('验证码已发送到您的邮箱', 'info')
+      
+      // 开始倒计时
+      adminVerifyCountdown.value = 60
+      const timer = setInterval(() => {
+        adminVerifyCountdown.value--
+        if (adminVerifyCountdown.value <= 0) {
+          clearInterval(timer)
+        }
+      }, 1000)
+    } else {
+      throw new Error(data.message || '发送验证码失败')
+    }
+  } catch (error: any) {
+    console.error('发送验证码失败:', error)
+    showAlert(error.message || '发送验证码失败，请重试', 'error')
+  } finally {
+    adminVerifyLoading.value = false
+  }
+}
+
+// 验证管理员验证码
+const verifyAdminCode = async () => {
+  if (!adminVerifyCode.value) {
+    showAlert('请输入验证码', 'warning')
+    return
+  }
+  
+  try {
+    adminVerifyLoading.value = true
+    
+    const response = await fetch('http://localhost:8088/api/auth/verify-email-code', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        email: userStore.userInfo?.email,
+        code: adminVerifyCode.value,
+        type: 'admin_verify'  // 指定验证类型为管理员验证
+      })
+    })
+    
+    const data = await response.json()
+    if (data.success) {
+      showAlert('验证成功，正在进入管理后台...', 'success')
+      
+      // 关闭模态框
+      showAdminVerify.value = false
+      
+      // 延迟跳转
+      setTimeout(() => {
+        router.push('/admin')
+      }, 1500)
+    } else {
+      throw new Error(data.message || '验证失败')
+    }
+  } catch (error: any) {
+    console.error('验证失败:', error)
+    showAlert(error.message || '验证失败，请重试', 'error')
+  } finally {
+    adminVerifyLoading.value = false
   }
 }
 </script>
@@ -1874,5 +2063,63 @@ input:-webkit-autofill:active {
 
 .send-code-btn:not(:disabled):hover {
   background: rgba(135, 206, 235, 0.9);
+}
+
+/* 添加管理员选项模态框样式 */
+.admin-welcome-text {
+  color: #fff;
+  text-align: center;
+  margin: 15px 0;
+}
+
+.admin-options {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.home-btn,
+.admin-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.home-btn {
+  background: #4caf50;
+}
+
+.home-btn:hover {
+  background: #388e3c;
+  transform: translateY(-2px);
+}
+
+.admin-btn {
+  background: #ff9800;
+}
+
+.admin-btn:hover {
+  background: #f57c00;
+  transform: translateY(-2px);
+}
+
+.verify-text {
+  color: #fff;
+  text-align: center;
+  margin: 15px 0 20px;
+}
+
+/* 调整模态框样式 */
+.modal-content {
+  max-width: 450px;
 }
 </style> 

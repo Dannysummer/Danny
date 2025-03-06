@@ -131,9 +131,42 @@ const handleClick = () => {
   }
 }
 
-const handleLogout = () => {
-  userStore.logout()
-  showMenu.value = false
+const handleLogout = async () => {
+  try {
+    // 调用后端退出登录接口
+    const response = await fetch('http://localhost:8088/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',  // 确保发送cookie
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    const data = await response.json()
+    
+    if (data.success) {
+      // 清除cookie中的token
+      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      
+      // 清除store中的用户信息
+      userStore.logout()
+      
+      // 关闭菜单
+      showMenu.value = false
+      
+      // 跳转到首页
+      router.push('/')
+    } else {
+      console.error('退出登录失败:', data.message)
+    }
+  } catch (error) {
+    console.error('退出登录出错:', error)
+    // 即使请求失败，也清除本地状态
+    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+    userStore.logout()
+    showMenu.value = false
+    router.push('/')
+  }
 }
 </script>
 

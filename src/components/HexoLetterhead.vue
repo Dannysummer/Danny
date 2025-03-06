@@ -18,24 +18,60 @@
           <!-- 内容层 -->
           <div class="content-container">
             <div class="letter">
-              <div class="friend-form">
+              <div class="friend-form" @click.stop>
                 <div class="form-item">
                   <label>名称：</label>
-                  <input type="text" />
+                  <input 
+                    type="text" 
+                    v-model="formData.name" 
+                    @click.stop 
+                    :class="{ 'error': errors.name }"
+                  />
                 </div>
                 <div class="form-item">
                   <label>简介：</label>
-                  <input type="text" />
+                  <input 
+                    type="text" 
+                    v-model="formData.description" 
+                    @click.stop
+                    :class="{ 'error': errors.description }"
+                  />
                 </div>
                 <div class="form-item">
                   <label>封面：</label>
-                  <input type="text" />
+                  <input 
+                    type="text" 
+                    v-model="formData.cover" 
+                    @click.stop
+                    :class="{ 'error': errors.cover }"
+                  />
+                </div>
+                <div class="form-item">
+                  <label>头像：</label>
+                  <input 
+                    type="text" 
+                    v-model="formData.avatar" 
+                    @click.stop
+                    :class="{ 'error': errors.avatar }"
+                  />
                 </div>
                 <div class="form-item">
                   <label>网址：</label>
-                  <input type="text" />
+                  <input 
+                    type="text" 
+                    v-model="formData.url" 
+                    @click.stop
+                    :class="{ 'error': errors.url }"
+                  />
                 </div>
-                <button class="submit-btn">提交</button>
+                <div class="error-message" v-if="submitError">{{ submitError }}</div>
+                <button 
+                  class="submit-btn" 
+                  @click.stop="handleSubmit"
+                  :disabled="isSubmitting"
+                >
+                  {{ isSubmitting ? '提交中...' : '提交' }}
+                </button>
               </div>
               <div class="friend-footer">
                 <div class="footer-deco"></div>
@@ -79,9 +115,50 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, reactive } from 'vue'
+
+interface FormData {
+  name: string
+  description: string
+  url: string
+  avatar: string
+  cover: string
+  category: string
+}
+
+interface FormErrors {
+  name: boolean
+  description: boolean
+  url: boolean
+  avatar: boolean
+  cover: boolean
+}
+
+type FormKey = keyof FormData
+type ErrorKey = keyof FormErrors
 
 const isActive = ref(false)
+const isSubmitting = ref(false)
+const submitError = ref('')
+
+// 表单数据
+const formData = reactive<FormData>({
+  name: '',
+  description: '',
+  url: '',
+  avatar: '',
+  cover: '',
+  category: 'friend'
+})
+
+// 表单错误
+const errors = reactive<FormErrors>({
+  name: false,
+  description: false,
+  url: false,
+  avatar: false,
+  cover: false
+})
 
 const toggleEnvelope = () => {
   isActive.value = !isActive.value
@@ -101,6 +178,104 @@ watch(isActive, (newValue) => {
     cat?.classList.remove('show')
   }
 })
+
+// 验证表单
+const validateForm = () => {
+  let isValid = true
+  
+  // 重置错误状态
+  const errorKeys = Object.keys(errors) as ErrorKey[]
+  errorKeys.forEach(key => {
+    errors[key] = false
+  })
+  
+  // 验证名称
+  if (!formData.name.trim()) {
+    errors.name = true
+    isValid = false
+  } else if (formData.name.length > 20) {
+    errors.name = true
+    isValid = false
+  }
+  
+  // 验证简介
+  if (!formData.description.trim()) {
+    errors.description = true
+    isValid = false
+  } else if (formData.description.length > 20) {
+    errors.description = true
+    isValid = false
+  }
+  
+  // 验证URL
+  const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/
+  if (!formData.url.trim() || !urlPattern.test(formData.url)) {
+    errors.url = true
+    isValid = false
+  }
+  
+  // 验证头像URL
+  if (!formData.avatar.trim() || !formData.avatar.startsWith('http')) {
+    errors.avatar = true
+    isValid = false
+  }
+  
+  // 验证封面URL
+  if (!formData.cover.trim() || !formData.cover.startsWith('http')) {
+    errors.cover = true
+    isValid = false
+  }
+  
+  return isValid
+}
+
+// 提交表单
+const handleSubmit = async () => {
+  try {
+    // 重置错误信息
+    submitError.value = ''
+    
+    // 表单验证
+    if (!validateForm()) {
+      submitError.value = '请检查表单填写是否正确'
+      return
+    }
+    
+    isSubmitting.value = true
+    
+    const response = await fetch('http://localhost:8088/api/friend-links/apply', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify(formData)
+    })
+
+    const data = await response.json()
+    
+    if (data.success) {
+      // 提交成功，重置表单
+      const formKeys = Object.keys(formData) as FormKey[]
+      formKeys.forEach(key => {
+        if (key !== 'category') {
+          formData[key] = ''
+        }
+      })
+      // 关闭信封
+      isActive.value = false
+      // 显示成功提示
+      alert('申请提交成功，请等待审核！')
+    } else {
+      submitError.value = data.message || '提交失败，请稍后重试'
+    }
+  } catch (error) {
+    console.error('提交失败:', error)
+    submitError.value = '网络错误，请稍后重试'
+  } finally {
+    isSubmitting.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -143,11 +318,12 @@ watch(isActive, (newValue) => {
     transform: translateY(-144px); 
 }
 .envelope-layer.middle { 
-    height: 90%;
+    height: 80%;
     width: 100%;
     left: 0;
-    top: 0;
+    top: 0%;
     z-index: 1;
+    transform: translateY(20%);
 }
 .envelope-layer.after { z-index: 3; }
 
@@ -156,7 +332,7 @@ watch(isActive, (newValue) => {
   bottom: 20px;
   left: 5%;
   width: 90%;
-  height: 300%;
+  height: 400%;
   overflow: hidden;
   overflow-clip-margin: 100vh 0 0 0;  /* 上方不裁切 */
   z-index: 2;
@@ -164,12 +340,13 @@ watch(isActive, (newValue) => {
 
 .content-wrapper {
   position: relative;
-  top: 70%;
+  top: 72%;
   width: 100%;
-  height: 35%;
+  height: 31%;
   transform: translateY(10%);
   transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: all;
+  /* overflow: visible; */
 }
 
 .envelope.active .content-wrapper {
@@ -188,7 +365,8 @@ watch(isActive, (newValue) => {
   position: relative;
   background: rgba(255, 255, 255, 0.9);
   padding: 30px;
-  height: 100%;
+  height: 130%;
+  margin-top: -30%;
   border-radius: 10px;
 }
 
@@ -243,12 +421,17 @@ watch(isActive, (newValue) => {
 
 .friend-form {
   padding: 20px;
+  transform: translateY(50%);
+  position: relative;
+  z-index: 2;  /* 确保表单在最上层 */
 }
 
 .form-item {
   margin-bottom: 15px;
   display: flex;
   align-items: center;
+  position: relative;  /* 添加相对定位 */
+  z-index: 3;  /* 确保表单项在最上层 */
 }
 
 .form-item label {
@@ -264,6 +447,21 @@ watch(isActive, (newValue) => {
   border: 1px solid #ddd;
   border-radius: 4px;
   background: #f5f5f5;
+  position: relative;
+  z-index: 3;
+  transition: all 0.3s ease;
+}
+
+.form-item input.error {
+  border-color: #ff4444;
+  background-color: rgba(255, 68, 68, 0.1);
+}
+
+.error-message {
+  color: #ff4444;
+  font-size: 0.9em;
+  margin-top: 10px;
+  text-align: center;
 }
 
 .submit-btn {
@@ -277,15 +475,18 @@ watch(isActive, (newValue) => {
   margin-top: 20px;
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative;
+  z-index: 3;
 }
 
-.submit-btn:hover {
-  background: #673ab7;
+.submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
 .friend-footer {
   text-align: center;
-  margin-top: 20px;
+  margin-top: 210px;
   padding: 10px;
   display: flex;
   align-items: center;
@@ -341,6 +542,7 @@ watch(isActive, (newValue) => {
   height: auto;
   z-index: 1;
   pointer-events: none;
+  margin-bottom: 20px;
 }
 
 .decoration-image img {

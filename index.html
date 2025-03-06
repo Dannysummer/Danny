@@ -28,14 +28,37 @@
       });
     </script>
 
-    <script src="/live2d/TweenLite.js"></script>
-    <script src="/live2d/live2dcubismcore.min.js"></script>
-    <script src="/live2d/pixi.min.js"></script>
-    <script src="/live2d/cubism4.min.js"></script>
-    <script src="/live2d/pio.js"></script>
-    <script src="/live2d/pio_sdk4.js"></script>
-    <script src="/live2d/load.js"></script>
-    <link rel="stylesheet" type="text/css" href="/live2d/pio.css" />
+    <script>
+      // 检查是否在后台管理路径下
+      const isAdminPath = window.location.pathname.startsWith('/admin');
+      
+      // 如果不是后台管理路径，则加载看板娘组件
+      if (!isAdminPath) {
+        // 创建并加载Live2D相关脚本和样式
+        const scripts = [
+          '/live2d/TweenLite.js',
+          '/live2d/live2dcubismcore.min.js',
+          '/live2d/pixi.min.js',
+          '/live2d/cubism4.min.js',
+          '/live2d/pio.js',
+          '/live2d/pio_sdk4.js',
+          '/live2d/load.js'
+        ];
+        
+        scripts.forEach(src => {
+          const script = document.createElement('script');
+          script.src = src;
+          document.head.appendChild(script);
+        });
+        
+        // 添加样式
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '/live2d/pio.css';
+        document.head.appendChild(link);
+      }
+    </script>
     <script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
   </head>
   <body>

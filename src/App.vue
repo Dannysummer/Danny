@@ -1,121 +1,144 @@
 <template>
   <div class="app">
-    <LoadingPage v-if="!$route.meta.hideLoading" />
-    <!-- <ParticlesBackground /> -->
-    <!-- 顶部导航栏 -->
-    <nav class="nav" :class="{ 'nav-hidden': isNavHidden }" @mouseenter="handleNavMouseEnter" @mouseleave="handleNavMouseLeave">
-      <div class="nav-content">
-        <div class="logo">
-          <Logo />
-        </div>
-        
-        <!-- 添加汉堡菜单按钮 -->
-        <button class="mobile-menu-btn" @click="toggleMobileMenu" aria-label="菜单">
-          <Icon :icon="isMobileMenuOpen ? 'mdi:close' : 'mdi:menu'" />
-        </button>
+    <!-- 增加后台路由检测逻辑 -->
+    <template v-if="isAdminRoute">
+      <!-- 后台路由，只渲染路由视图 -->
+      <router-view />
+    </template>
+    <template v-else>
+      <!-- 前台路由，渲染完整UI -->
+      <LoadingPage v-if="!$route.meta.hideLoading" />
+      <!-- <ParticlesBackground /> -->
+      <!-- 顶部导航栏 -->
+      <nav class="nav" :class="{ 'nav-hidden': isNavHidden }" @mouseenter="handleNavMouseEnter" @mouseleave="handleNavMouseLeave">
+        <div class="nav-content">
+          <div class="logo">
+            <Logo />
+          </div>
+          
+          <!-- 添加汉堡菜单按钮 -->
+          <button class="mobile-menu-btn" @click="toggleMobileMenu" aria-label="菜单">
+            <Icon :icon="isMobileMenuOpen ? 'mdi:close' : 'mdi:menu'" />
+          </button>
 
-        <!-- 修改导航链接容器 -->
-        <div class="nav-links" :class="{ 'mobile-menu-open': isMobileMenuOpen }">
-          <div class="nav-slider" :style="sliderStyle"></div>
-          <div class="nav-line" :style="navLineStyle"></div>
-          <template v-for="(link, index) in navLinks" :key="index">
-            <!-- 普通链接 -->
-            <router-link 
-              v-if="!link.children"
-              :to="link.path" 
-              class="nav-link"
-              @click="handleLinkClick($event.currentTarget)"
-            >
-              <Icon :icon="link.icon" class="nav-icon" />
-              {{ link.text }}
-            </router-link>
-            
-            <!-- 带下拉菜单的链接 -->
-            <div 
-              v-else 
-              class="nav-dropdown"
-            >
-              <div class="nav-link">
+          <!-- 修改导航链接容器 -->
+          <div class="nav-links" :class="{ 'mobile-menu-open': isMobileMenuOpen }">
+            <div class="nav-slider" :style="sliderStyle"></div>
+            <div class="nav-line" :style="navLineStyle"></div>
+            <template v-for="(link, index) in navLinks" :key="index">
+              <!-- 普通链接 -->
+              <router-link 
+                v-if="!link.children"
+                :to="link.path" 
+                class="nav-link"
+                @click="handleLinkClick($event.currentTarget)"
+              >
                 <Icon :icon="link.icon" class="nav-icon" />
                 {{ link.text }}
-                <Icon icon="material-symbols:keyboard-arrow-down" class="dropdown-icon" />
+              </router-link>
+              
+              <!-- 带下拉菜单的链接 -->
+              <div 
+                v-else 
+                class="nav-dropdown"
+              >
+                <div class="nav-link">
+                  <Icon :icon="link.icon" class="nav-icon" />
+                  {{ link.text }}
+                  <Icon icon="material-symbols:keyboard-arrow-down" class="dropdown-icon" />
+                </div>
+                <div class="dropdown-menu">
+                  <router-link 
+                    v-for="child in link.children"
+                    :key="child.path"
+                    :to="child.path"
+                    class="dropdown-item"
+                    @click="handleLinkClick($event.currentTarget)"
+                  >
+                    <Icon :icon="child.icon" class="nav-icon" />
+                    {{ child.text }}
+                  </router-link>
+                </div>
               </div>
-              <div class="dropdown-menu">
-                <router-link 
-                  v-for="child in link.children"
-                  :key="child.path"
-                  :to="child.path"
-                  class="dropdown-item"
-                  @click="handleLinkClick($event.currentTarget)"
-                >
-                  <Icon :icon="child.icon" class="nav-icon" />
-                  {{ child.text }}
-                </router-link>
+            </template>
+          </div>
+        </div>
+      </nav>
+      
+      <!-- 悬浮播放器 -->
+      <div class="floating-player" v-show="musicStore.currentSong">
+        <!-- 将整个播放器区域作为鼠标事件的触发区域 -->
+        <div class="player-container" 
+             @mouseenter="showMusicInfo = true" 
+             @mouseleave="showMusicInfo = false">
+          <!-- 简洁控制器 -->
+          <div class="quick-controls" v-show="showMusicInfo">
+            <div class="song-info">
+              <div class="song-title">{{ musicStore.currentSong.title }}</div>
+              <div class="mini-progress">
+                <div class="mini-progress-bar" @click="handleProgressClick">
+                  <div class="mini-progress-current" :style="{ width: `${progress}%` }"></div>
+                </div>
               </div>
             </div>
-          </template>
-        </div>
-      </div>
-    </nav>
-    
-    <!-- 悬浮播放器 -->
-    <div class="floating-player" v-show="musicStore.currentSong">
-      <!-- 将整个播放器区域作为鼠标事件的触发区域 -->
-      <div class="player-container" 
-           @mouseenter="showMusicInfo = true" 
-           @mouseleave="showMusicInfo = false">
-        <!-- 简洁控制器 -->
-        <div class="quick-controls" v-show="showMusicInfo">
-          <div class="song-info">
-            <div class="song-title">{{ musicStore.currentSong.title }}</div>
-            <div class="mini-progress">
-              <div class="mini-progress-bar" @click="handleProgressClick">
-                <div class="mini-progress-current" :style="{ width: `${progress}%` }"></div>
-              </div>
+            <div class="controls-divider"></div>
+            <div class="control-buttons">
+              <button class="quick-btn" @click.stop="musicStore.prevSong">
+                <Icon icon="mdi:skip-previous" />
+              </button>
+              <button class="quick-btn play" @click.stop="musicStore.togglePlay">
+                <Icon :icon="musicStore.isPlaying ? 'mdi:pause' : 'mdi:play'" />
+              </button>
+              <button class="quick-btn" @click.stop="musicStore.nextSong">
+                <Icon icon="mdi:skip-next" />
+              </button>
             </div>
           </div>
-          <div class="controls-divider"></div>
-          <div class="control-buttons">
-            <button class="quick-btn" @click.stop="musicStore.prevSong">
-              <Icon icon="mdi:skip-previous" />
-            </button>
-            <button class="quick-btn play" @click.stop="musicStore.togglePlay">
-              <Icon :icon="musicStore.isPlaying ? 'mdi:pause' : 'mdi:play'" />
-            </button>
-            <button class="quick-btn" @click.stop="musicStore.nextSong">
-              <Icon icon="mdi:skip-next" />
-            </button>
+          
+          <!-- 音符动画只在播放时显示 -->
+          <div class="music-notes" v-show="musicStore.isPlaying">
+            <span class="note">♪</span>
+            <span class="note">♫</span>
+            <span class="note">♪</span>
           </div>
-        </div>
-        
-        <!-- 音符动画只在播放时显示 -->
-        <div class="music-notes" v-show="musicStore.isPlaying">
-          <span class="note">♪</span>
-          <span class="note">♫</span>
-          <span class="note">♪</span>
-        </div>
-        <div class="floating-cover">
-          <img :src="coverImage" :alt="musicStore.currentSong.title" />
-          <!-- 歌曲信息提示 -->
-          <div class="quick-info" v-show="!showMusicInfo">
-            {{ musicStore.currentSong.title }}
+          <div class="floating-cover">
+            <img :src="coverImage" :alt="musicStore.currentSong.title" />
+            <!-- 歌曲信息提示 -->
+            <div class="quick-info" v-show="!showMusicInfo">
+              {{ musicStore.currentSong.title }}
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 主题切换按钮 -->
-    <div class="theme-toggle" :class="{ 'move-up': musicStore.currentSong }" @click="handleThemeToggle">
-      <Icon :icon="isDark ? 'material-symbols:light-mode' : 'material-symbols:dark-mode'" 
-            class="theme-icon" />
-    </div>
-    
-    <router-view />
-    
-    <!-- 添加页脚 Banner -->
-    <FooterBanner v-if="!$route.meta.hideFooter" />
-    <!-- <UserAvatar v-if="!$route.meta.hideAvatar" /> -->
-    <FloatingLogin v-if="!$route.meta.hideLogin" />
+      <!-- 主题切换按钮 -->
+      <div class="theme-toggle" :class="{ 'move-up': musicStore.currentSong }" @click="handleThemeToggle">
+        <Icon :icon="isDark ? 'material-symbols:light-mode' : 'material-symbols:dark-mode'" 
+              class="theme-icon" />
+      </div>
+      
+      <!-- 主路由视图 -->
+      <router-view />
+      
+      <!-- 添加页脚 Banner -->
+      <FooterBanner v-if="!$route.meta.hideFooter" />
+      <!-- <UserAvatar v-if="!$route.meta.hideAvatar" /> -->
+      <FloatingLogin v-if="!$route.meta.hideLogin" />
+      
+      <!-- 评论框 -->
+      <!-- 注释掉不存在的组件引用 -->
+      <!-- <CommentPanel 
+        v-if="commentStore.isCommentPanelOpen" 
+        :post-id="commentStore.currentPostId" 
+        @close="commentStore.closeCommentPanel" 
+      /> -->
+      
+      <!-- 弹窗 -->
+      <!-- <Toast ref="toast" /> -->
+      
+      <!-- 滚动指示器 -->
+      <div class="scroll-indicator" :style="{ width: scrollPercentage + '%' }"></div>
+    </template>
   </div>
 </template>
 
@@ -131,13 +154,26 @@ import FooterBanner from './components/FooterBanner.vue'
 import Logo from './components/Logo.vue'
 import LoadingPage from './components/LoadingPage.vue'
 // import UserAvatar from './components/UserAvatar.vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import FloatingLogin from './components/FloatingLogin.vue'
+// 注释掉不存在的组件导入
+// import CommentPanel from './components/CommentPanel.vue'
+// import Toast from './components/Toast.vue'
+// import Footer from './components/Footer.vue'
 
 const themeStore = useThemeStore()
 const musicStore = useMusicStore()
 const userStore = useUserStore()
+const commentStore = ref({
+  isCommentPanelOpen: false,
+  currentPostId: 0,
+  closeCommentPanel: () => {
+    commentStore.value.isCommentPanelOpen = false
+  }
+})
+const scrollPercentage = ref(0)
 const route = useRoute()
+const router = useRouter()
 
 const isNavHidden = ref(false)
 const isMouseNearTop = ref(false)
@@ -150,6 +186,12 @@ const handleScroll = () => {
   // 只在鼠标不在导航区域时处理滚动隐藏
   if (!isMouseNearTop.value && !isMouseOverNav.value && currentScrollTop > 50) {
     isNavHidden.value = currentScrollTop > lastScrollTop
+  }
+  
+  // 计算滚动百分比
+  const scrollHeight = document.documentElement.scrollHeight - window.innerHeight
+  if (scrollHeight > 0) {
+    scrollPercentage.value = (currentScrollTop / scrollHeight) * 100
   }
   
   lastScrollTop = currentScrollTop
@@ -369,6 +411,11 @@ watch(() => route.path, (newPath) => {
     document.body.classList.remove('start-page-route')
   }
 }, { immediate: true })
+
+// 添加判断当前路径是否为管理后台的计算属性
+const isAdminRoute = computed(() => {
+  return route.path.startsWith('/admin')
+})
 </script>
 
 <style>
@@ -1715,6 +1762,22 @@ textarea,
   visibility: visible;
   opacity: 1;
   transition-delay: 0s;
+}
+
+/* 添加滚动指示器样式 */
+.scroll-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background-color: #87CEEB;
+  z-index: 10001;
+  transition: width 0.2s ease;
+}
+
+.dark-theme .scroll-indicator {
+  background-color: rgba(135, 206, 235, 0.8);
+  box-shadow: 0 0 8px rgba(135, 206, 235, 0.5);
 }
 </style>
 

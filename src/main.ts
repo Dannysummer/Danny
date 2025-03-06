@@ -23,7 +23,10 @@ export const isDark = useDark({
   valueLight: 'light'
 })
 
+const pinia = createPinia()
+
+// 统一使用App作为根组件
 const app = createApp(App)
 app.use(router)
-app.use(createPinia())
+app.use(pinia)
 app.mount('#app')
