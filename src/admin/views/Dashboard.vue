@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard">
-
+    <MessageNotification ref="notification" />
     
     <!-- 卡片内容区 - 移至左侧列 -->
     
@@ -19,7 +19,7 @@
                     <img src="https://picbedcdn.dannysummer.asia/public/avatars/avatar1.jpg" alt="avatar">
                   </div>
                 </div>
-                <div class="quote-text">"遇事不决，可问春风"</div>
+                <div class="quote-text-avatar">"遇事不决，可问春风"</div>
               </div>
               <div class="stats-circles">
                 <div class="stat-item">
@@ -39,11 +39,11 @@
                           a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
                         stroke="#4f86f7"
-                        stroke-width="2"
+                        stroke-width="2.5"
                         :stroke-dasharray="`${cpuUsage}, 100`"
                       />
                     </svg>
-                    <div class="stat-label">CPU</div>
+                    <div class="stat-label-watch">CPU<div class="stat-value-watch">{{ cpuUsage }}%</div></div>
                   </div>
                 </div>
                 <div class="stat-item">
@@ -63,11 +63,11 @@
                           a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
                         stroke="#4f86f7"
-                        stroke-width="2"
+                        stroke-width="2.5"
                         :stroke-dasharray="`${memoryUsage}, 100`"
                       />
                     </svg>
-                    <div class="stat-label">内存</div>
+                    <div class="stat-label-watch">内存<div class="stat-value-watch">{{ memoryUsage }}%</div></div>
                   </div>
                 </div>
                 <div class="stat-item">
@@ -87,11 +87,11 @@
                           a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
                         stroke="#4f86f7"
-                        stroke-width="2"
+                        stroke-width="2.5"
                         :stroke-dasharray="`${diskUsage}, 100`"
                       />
                     </svg>
-                    <div class="stat-label">磁盘</div>
+                    <div class="stat-label-watch">磁盘<div class="stat-value-watch">{{ diskUsage }}%</div></div>
                   </div>
                 </div>
               </div>
@@ -106,7 +106,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-label">文章总数</div>
-              <div class="stat-value">210</div>
+              <div class="stat-value">{{ statistics.articleCount }}</div>
             </div>
           </div>
           
@@ -116,7 +116,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-label">分类总数</div>
-              <div class="stat-value">10</div>
+              <div class="stat-value">{{ statistics.categoryCount }}</div>
             </div>
           </div>
           
@@ -126,19 +126,83 @@
             </div>
             <div class="stat-info">
               <div class="stat-label">标签总数</div>
-              <div class="stat-value">22</div>
+              <div class="stat-value">{{ statistics.tagCount }}</div>
             </div>
           </div>
         </div>
         
         <!-- 标签云 -->
         <div class="tag-cloud glass-card">
-          <div class="section-title">标签云</div>
+          <div class="section-header">
+            <div class="section-title">标签云</div>
+            <div class="section-actions">
+              <button class="action-btn" @click="openTagEditor(null)">
+                <Icon icon="mdi:plus" />
+              </button>
+            </div>
+          </div>
+          
           <div class="cloud-container">
-            <span v-for="(tag, index) in tags" :key="index" 
-                  :style="{ fontSize: `${tag.size}px`, color: tag.color }">
+            <span 
+              v-for="(tag, index) in tags" 
+              :key="index" 
+              :style="{ fontSize: `${tag.size}px`, color: tag.color }"
+              class="tag-item"
+            >
               {{ tag.name }}
+              <div class="tag-actions">
+                <button class="tag-action-btn edit" @click.stop="openTagEditor(tag)">
+                  <Icon icon="mdi:pencil" />
+                </button>
+                <button class="tag-action-btn delete" @click.stop="deleteTag(tag)">
+                  <Icon icon="mdi:delete" />
+                </button>
+              </div>
             </span>
+          </div>
+          
+          <!-- 标签编辑器对话框 -->
+          <div class="modal" v-if="showTagEditor">
+            <div class="modal-content">
+              <h3 class="modal-title">{{ editingTag ? '编辑标签' : '添加标签' }}</h3>
+              
+              <div class="form-group">
+                <label>标签名称</label>
+                <input 
+                  type="text" 
+                  :value="editingTag ? editingTag.name : newTag.name"
+                  @input="e => handleInputChange(e, 'name')"
+                  placeholder="输入标签名称"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label>字体大小 (px)</label>
+                <input 
+                  type="range" 
+                  :value="editingTag ? editingTag.size : newTag.size"
+                  @input="e => handleRangeChange(e)"
+                  min="12" 
+                  max="24" 
+                  step="1"
+                />
+                <span>{{ editingTag ? editingTag.size : newTag.size }}px</span>
+              </div>
+              
+              <div class="form-group">
+                <label>标签颜色</label>
+                <input 
+                  type="color" 
+                  :value="editingTag ? editingTag.color : newTag.color"
+                  @input="e => handleInputChange(e, 'color')"
+                />
+              </div>
+              
+              <div class="modal-actions">
+                <button class="modal-btn cancel" @click="showTagEditor = false">取消</button>
+                <button class="modal-btn save" @click="saveTag">保存</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -170,6 +234,10 @@
         <div class="latest-articles">
           <div class="section-title">最新文章</div>
           
+          <div v-if="latestArticles.length === 0" class="empty-state">
+            暂无文章数据
+          </div>
+          
           <div class="article-card glass-card" v-for="(article, index) in latestArticles" :key="index">
             <div class="article-header">
               <h3 class="article-title">{{ article.title }}</h3>
@@ -192,6 +260,18 @@
       
       <!-- 右侧列 - 1fr -->
       <div class="dashboard-right">
+        <!-- 时钟组件 -->
+        <div class="clock-container glass-card">
+          <div class="time">
+            {{ currentTime.slice(0, 2) }}
+            <span class="colon">:</span>
+            {{ currentTime.slice(2, 4) }}
+            <span class="colon">:</span>
+            {{ currentTime.slice(4, 6) }}
+            <span class="period">{{ currentPeriod }}</span>
+          </div>
+        </div>
+        
         <!-- 日历组件 -->
         <div class="calendar">
           <div class="calendar-header">
@@ -240,14 +320,53 @@
         
         <!-- 开发进度 -->
         <div class="dev-progress glass-card">
-          <div class="progress-title">开发进度</div>
-          <div class="progress-bar">
-            <div class="progress-fill"></div>
+          <div class="section-header">
+            <div class="progress-title">开发进度</div>
+            <div class="section-actions">
+              <button class="action-btn" @click="showProgressEditor = true">
+                <Icon icon="mdi:plus" />
+              </button>
+            </div>
           </div>
+          
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{width: `${progressPercentage}%`}"></div>
+          </div>
+          
           <div class="progress-items">
-            <div class="progress-item completed">
-              <Icon icon="mdi:check" />
-              <span>登录逻辑和后台页面UI</span>
+            <div 
+              v-for="(item, index) in progressItems" 
+              :key="index" 
+              class="progress-item" 
+              :class="{ 'completed': item.completed }"
+              @click="toggleProgressItemStatus(item)"
+            >
+              <Icon :icon="item.completed ? 'mdi:check' : 'mdi:circle-outline'" />
+              <span>{{ item.text }}</span>
+              <button class="progress-delete-btn" @click.stop="deleteProgressItem(item)">
+                <Icon icon="mdi:delete" />
+              </button>
+            </div>
+          </div>
+          
+          <!-- 进度项编辑器对话框 -->
+          <div class="modal" v-if="showProgressEditor">
+            <div class="modal-content">
+              <h3 class="modal-title">添加进度项</h3>
+              
+              <div class="form-group">
+                <label>进度项内容</label>
+                <input 
+                  type="text" 
+                  v-model="newProgressItem" 
+                  placeholder="输入进度项内容"
+                />
+              </div>
+              
+              <div class="modal-actions">
+                <button class="modal-btn cancel" @click="showProgressEditor = false">取消</button>
+                <button class="modal-btn save" @click="addProgressItem">添加</button>
+              </div>
             </div>
           </div>
         </div>
@@ -257,22 +376,85 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, reactive } from 'vue'
 import { Icon } from '@iconify/vue'
+import MessageNotification from '@/components/MessageNotification.vue'
 
-// 系统使用状态（模拟数据）
-const cpuUsage = ref(65)
-const memoryUsage = ref(48)
-const diskUsage = ref(75)
+// 定义类型接口
+interface Tag {
+  id: number
+  name: string
+  size: number
+  color: string
+}
 
-// 平滑更新系统状态数据
-const updateSystemStats = () => {
-  // 每次随机生成新的使用率数据
+interface Article {
+  id: number
+  title: string
+  publishTime: string
+  summary: string
+  tags: string[]
+}
+
+interface ProgressItem {
+  id: number
+  text: string
+  completed: boolean
+}
+
+interface HeatmapCell {
+  date: string
+  count: number
+  level: number
+}
+
+// 添加通知组件引用
+const notification = ref<InstanceType<typeof MessageNotification> | null>(null)
+
+// API基础URL
+const API_BASE_URL = 'http://localhost:8088/api'
+
+// 统计数据
+const statistics = reactive({
+  articleCount: 0,
+  categoryCount: 0,
+  tagCount: 0
+})
+
+// 系统使用状态
+const cpuUsage = ref(0)
+const memoryUsage = ref(0)
+const diskUsage = ref(0)
+
+// 获取真实系统状态
+const fetchSystemStats = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/system/stats`)
+    if (response.ok) {
+      const data = await response.json()
+      
+      // 使用平滑动画更新数据
+      animateValue(cpuUsage, data.cpu || 0, 800)
+      animateValue(memoryUsage, data.memory || 0, 800)
+      animateValue(diskUsage, data.disk || 0, 800)
+    } else {
+      console.error('获取系统状态失败')
+      // 使用模拟数据作为备选
+      updateMockSystemStats()
+    }
+  } catch (error) {
+    console.error('获取系统状态出错', error)
+    // 使用模拟数据作为备选
+    updateMockSystemStats()
+  }
+}
+
+// 模拟数据作为备选
+const updateMockSystemStats = () => {
   const newCpuUsage = Math.floor(40 + Math.random() * 45) // 40-85%
   const newMemoryUsage = Math.floor(30 + Math.random() * 40) // 30-70%
   const newDiskUsage = Math.floor(65 + Math.random() * 25) // 65-90%
   
-  // 使用动画平滑过渡到新数据
   animateValue(cpuUsage, newCpuUsage, 800)
   animateValue(memoryUsage, newMemoryUsage, 800)
   animateValue(diskUsage, newDiskUsage, 800)
@@ -300,12 +482,66 @@ const animateValue = (ref: any, newValue: number, duration: number) => {
   updateValue()
 }
 
-// 月份数据
-const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan']
+// 获取统计数据
+const fetchStatistics = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/statistics`)
+    if (response.ok) {
+      const data = await response.json()
+      
+      statistics.articleCount = data.articles || 0
+      statistics.categoryCount = data.categories || 0
+      statistics.tagCount = data.tags || 0
+    } else {
+      console.error('获取统计数据失败')
+      notification.value?.addMessage('获取统计数据失败', 'error')
+    }
+  } catch (error: any) {
+    console.error('获取统计数据出错', error)
+    notification.value?.addMessage('获取统计数据失败: ' + (error.message || '未知错误'), 'error')
+  }
+}
 
-// 热图数据生成
-const generateHeatmapData = () => {
-  const data = []
+// 月份数据
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+// 文章热图数据
+const heatmapData = ref<HeatmapCell[]>([])
+
+// 获取文章热图数据
+const fetchHeatmapData = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/articles/heatmap`)
+    if (response.ok) {
+      const data = await response.json()
+      heatmapData.value = data.map((item: any) => ({
+        date: item.date,
+        count: item.count,
+        level: calculateLevel(item.count)
+      }))
+    } else {
+      console.error('获取热图数据失败')
+      // 使用模拟数据作为备选
+      heatmapData.value = generateMockHeatmapData()
+    }
+  } catch (error) {
+    console.error('获取热图数据出错', error)
+    // 使用模拟数据作为备选
+    heatmapData.value = generateMockHeatmapData()
+  }
+}
+
+// 计算热力图等级
+const calculateLevel = (count: number): number => {
+  if (count === 0) return 0
+  if (count === 1) return 1
+  if (count === 2) return 2
+  return 3
+}
+
+// 生成模拟热图数据作为备选
+const generateMockHeatmapData = (): HeatmapCell[] => {
+  const data: HeatmapCell[] = []
   const today = new Date()
   const startDate = new Date(today)
   startDate.setDate(startDate.getDate() - 365) // 一年的数据
@@ -328,10 +564,8 @@ const generateHeatmapData = () => {
   return data
 }
 
-const heatmapData = ref(generateHeatmapData())
-
-// 获取热图单元格的类名
-const getCellClass = (cell: { level: number }) => {
+// 热图单元格类名
+const getCellClass = (cell: HeatmapCell) => {
   if (cell.level === 0) return ''
   if (cell.level === 1) return 'level-1'
   if (cell.level === 2) return 'level-2'
@@ -339,41 +573,90 @@ const getCellClass = (cell: { level: number }) => {
 }
 
 // 最新文章数据
-const latestArticles = ref([
-  {
-    title: '深入理解神经网络',
-    publishTime: '6天前',
-    summary: '本文探讨了神经网络的工作原理以及在机器学习和人工智能中的应用，从感知器到深度学习，了解神经网络的发展历程。',
-    tags: ['神经网络', '机器学习', '人工智能']
-  },
-  {
-    title: '构建高性能的Web应用',
-    publishTime: '6天前',
-    summary: '通过优化前端和后端代码，本文介绍了构建高性能Web应用的最佳实践，包括性能监测、代码分割、缓存策略等方面的建议。',
-    tags: ['Web开发', '性能优化', '前端', '后端']
-  },
-  {
-    title: '掌握数据结构与算法',
-    publishTime: '6天前',
-    summary: '深入研究常见的数据结构和算法，讨论它们的优缺点以及在解决实际问题中的应用，包括排序算法、图算法、动态规划等。',
-    tags: ['数据结构', '算法', '编程']
-  },
-  {
-    title: '容器化应用与Docker',
-    publishTime: '6天前',
-    summary: '学习如何使用Docker容器技术来高效应用的部署和管理，了解容器的基本概念、Dockerfile的编写以及容器编排工具的使用。',
-    tags: ['Docker', '容器化', 'DevOps']
+const latestArticles = ref<Article[]>([])
+
+// 获取最新文章
+const fetchLatestArticles = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/articles/latest`)
+    if (response.ok) {
+      const data = await response.json()
+      latestArticles.value = data.map((article: any) => ({
+        id: article.id,
+        title: article.title,
+        publishTime: formatPublishTime(new Date(article.createdAt || article.createTime)),
+        summary: article.summary || article.content?.substring(0, 100) || '暂无摘要',
+        tags: article.tags?.split(',').filter(Boolean) || []
+      }))
+    } else {
+      console.error('获取最新文章失败')
+      notification.value?.addMessage('获取最新文章失败', 'error')
+    }
+  } catch (error: any) {
+    console.error('获取最新文章出错', error)
+    notification.value?.addMessage('获取最新文章失败: ' + (error.message || '未知错误'), 'error')
   }
-])
+}
+
+// 格式化发布时间
+const formatPublishTime = (date: Date): string => {
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  
+  if (diffDays === 0) {
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    if (diffHours === 0) {
+      const diffMinutes = Math.floor(diffMs / (1000 * 60))
+      return `${diffMinutes}分钟前`
+    }
+    return `${diffHours}小时前`
+  } else if (diffDays < 30) {
+    return `${diffDays}天前`
+  } else {
+    return date.toLocaleDateString()
+  }
+}
 
 // 标签云数据
-const generateTags = () => {
+const tags = ref<Tag[]>([])
+const showTagEditor = ref(false)
+const editingTag = ref<Tag | null>(null)
+const newTag = ref<Tag>({ id: 0, name: '', size: 16, color: '#4f86f7' })
+
+// 获取标签云数据
+const fetchTags = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/tags`)
+    if (response.ok) {
+      const data = await response.json()
+      tags.value = data.map((tag: any) => ({
+        id: tag.id,
+        name: tag.name,
+        size: tag.size || Math.floor(Math.random() * 10) + 14, // 如果没有size字段，则随机生成
+        color: tag.color || `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)` // 如果没有color字段，则随机生成
+      }))
+    } else {
+      console.error('获取标签失败')
+      // 使用模拟数据作为备选
+      tags.value = generateMockTags()
+    }
+  } catch (error) {
+    console.error('获取标签出错', error)
+    // 使用模拟数据作为备选
+    tags.value = generateMockTags()
+  }
+}
+
+// 生成模拟标签数据作为备选
+const generateMockTags = (): Tag[] => {
   const keywords = ['JavaScript', 'Python', 'React', 'Vue', 'TypeScript', 'Node.js', 'CSS', 'HTML', 
                    '设计', '算法', '数据结构', '云计算', '服务器', '编程', '开发', '前端', '后端',
                    'AI', '机器学习', '代码', '开源']
   
-  return keywords.map(name => {
+  return keywords.map((name, index) => {
     return {
+      id: index + 1,
       name,
       size: Math.floor(Math.random() * 10) + 14, // 14px ~ 24px
       color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)`
@@ -381,7 +664,265 @@ const generateTags = () => {
   })
 }
 
-const tags = ref(generateTags())
+// 打开标签编辑器
+const openTagEditor = (tag: Tag | null = null) => {
+  if (tag) {
+    editingTag.value = { ...tag }
+  } else {
+    newTag.value = { id: 0, name: '', size: 16, color: '#4f86f7' }
+  }
+  showTagEditor.value = true
+}
+
+// 保存标签
+const saveTag = async () => {
+  try {
+    const tagData = editingTag.value || newTag.value
+    
+    if (!tagData.name.trim()) {
+      notification.value?.addMessage('标签名称不能为空', 'error')
+      return
+    }
+    
+    const method = editingTag.value ? 'PUT' : 'POST'
+    const url = editingTag.value 
+      ? `${API_BASE_URL}/tags/${editingTag.value.id}` 
+      : `${API_BASE_URL}/tags`
+    
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(tagData)
+    })
+    
+    if (response.ok) {
+      const result = await response.json()
+      if (editingTag.value) {
+        // 更新标签列表
+        const index = tags.value.findIndex(t => t.id === editingTag.value?.id)
+        if (index !== -1) {
+          tags.value[index] = { ...result }
+        }
+        notification.value?.addMessage('标签更新成功', 'success')
+      } else {
+        // 添加新标签
+        tags.value.push(result)
+        notification.value?.addMessage('标签添加成功', 'success')
+      }
+      
+      // 关闭标签编辑器
+      showTagEditor.value = false
+      editingTag.value = null
+    } else {
+      notification.value?.addMessage('保存标签失败', 'error')
+    }
+  } catch (error: any) {
+    console.error('保存标签出错', error)
+    notification.value?.addMessage('保存标签失败: ' + (error.message || '未知错误'), 'error')
+  }
+}
+
+// 删除标签
+const deleteTag = async (tag: Tag) => {
+  if (!confirm(`确定要删除标签"${tag.name}"吗？`)) {
+    return
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/tags/${tag.id}`, {
+      method: 'DELETE'
+    })
+    
+    if (response.ok) {
+      // 从列表中移除标签
+      tags.value = tags.value.filter(t => t.id !== tag.id)
+      notification.value?.addMessage('标签删除成功', 'success')
+    } else {
+      notification.value?.addMessage('删除标签失败', 'error')
+    }
+  } catch (error: any) {
+    console.error('删除标签出错', error)
+    notification.value?.addMessage('删除标签失败: ' + (error.message || '未知错误'), 'error')
+  }
+}
+
+// 开发进度相关
+const progressItems = ref<ProgressItem[]>([])
+const showProgressEditor = ref(false)
+const newProgressItem = ref('')
+
+// 获取开发进度数据
+const fetchProgressItems = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/progress`)
+    if (response.ok) {
+      progressItems.value = await response.json()
+    } else {
+      console.error('获取开发进度失败')
+      // 使用模拟数据作为备选
+      progressItems.value = [
+        { id: 1, text: '登录逻辑和后台页面UI', completed: true }
+      ]
+    }
+  } catch (error) {
+    console.error('获取开发进度出错', error)
+    // 使用模拟数据作为备选
+    progressItems.value = [
+      { id: 1, text: '登录逻辑和后台页面UI', completed: true }
+    ]
+  }
+}
+
+// 添加开发进度项
+const addProgressItem = async () => {
+  if (!newProgressItem.value.trim()) {
+    notification.value?.addMessage('进度项内容不能为空', 'error')
+    return
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/progress`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        text: newProgressItem.value,
+        completed: false
+      })
+    })
+    
+    if (response.ok) {
+      const result = await response.json()
+      progressItems.value.push(result)
+      newProgressItem.value = ''
+      notification.value?.addMessage('添加进度项成功', 'success')
+      showProgressEditor.value = false
+    } else {
+      notification.value?.addMessage('添加进度项失败', 'error')
+    }
+  } catch (error: any) {
+    console.error('添加进度项出错', error)
+    notification.value?.addMessage('添加进度项失败: ' + (error.message || '未知错误'), 'error')
+  }
+}
+
+// 切换进度项完成状态
+const toggleProgressItemStatus = async (item: ProgressItem) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/progress/${item.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...item,
+        completed: !item.completed
+      })
+    })
+    
+    if (response.ok) {
+      // 更新本地数据
+      const index = progressItems.value.findIndex(p => p.id === item.id)
+      if (index !== -1) {
+        progressItems.value[index].completed = !item.completed
+      }
+    } else {
+      notification.value?.addMessage('更新进度项状态失败', 'error')
+    }
+  } catch (error: any) {
+    console.error('更新进度项状态出错', error)
+    notification.value?.addMessage('更新进度项状态失败: ' + (error.message || '未知错误'), 'error')
+  }
+}
+
+// 删除进度项
+const deleteProgressItem = async (item: ProgressItem) => {
+  if (!confirm(`确定要删除进度项"${item.text}"吗？`)) {
+    return
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/progress/${item.id}`, {
+      method: 'DELETE'
+    })
+    
+    if (response.ok) {
+      // 从列表中移除进度项
+      progressItems.value = progressItems.value.filter(p => p.id !== item.id)
+      notification.value?.addMessage('删除进度项成功', 'success')
+    } else {
+      notification.value?.addMessage('删除进度项失败', 'error')
+    }
+  } catch (error: any) {
+    console.error('删除进度项出错', error)
+    notification.value?.addMessage('删除进度项失败: ' + (error.message || '未知错误'), 'error')
+  }
+}
+
+// 计算进度百分比
+const progressPercentage = computed(() => {
+  if (progressItems.value.length === 0) return 0
+  const completedCount = progressItems.value.filter(item => item.completed).length
+  return Math.round((completedCount / progressItems.value.length) * 100)
+})
+
+// 在组件挂载时获取所有数据
+onMounted(async () => {
+  // 获取系统状态
+  fetchSystemStats()
+  // 设置定时更新系统状态
+  setInterval(fetchSystemStats, 30000) // 30秒更新一次
+  
+  // 获取统计数据
+  fetchStatistics()
+  
+  // 获取文章热图数据
+  fetchHeatmapData()
+  
+  // 获取最新文章
+  fetchLatestArticles()
+  
+  // 获取标签云数据
+  fetchTags()
+  
+  // 获取开发进度
+  fetchProgressItems()
+  
+  // 启动时钟
+  updateTime()
+  setInterval(updateTime, 1000)
+})
+
+// 在 script setup 部分添加时钟逻辑
+const currentTime = ref('000000')
+const currentPeriod = ref('')
+
+// 更新时间的函数
+const updateTime = () => {
+  const now = new Date()
+  const hours = now.getHours()
+  const minutes = now.getMinutes()
+  const seconds = now.getSeconds()
+  
+  // 格式化时间
+  currentTime.value = `${hours.toString().padStart(2, '0')}${minutes.toString().padStart(2, '0')}${seconds.toString().padStart(2, '0')}`
+  
+  // 设置时间段
+  if (hours >= 5 && hours < 12) {
+    currentPeriod.value = '上午好'
+  } else if (hours >= 12 && hours < 14) {
+    currentPeriod.value = '中午好'
+  } else if (hours >= 14 && hours < 18) {
+    currentPeriod.value = '下午好'
+  } else if (hours >= 18 && hours < 24) {
+    currentPeriod.value = '晚上好'
+  } else {
+    currentPeriod.value = '夜深了'
+  }
+}
 
 // 日历功能
 const currentDate = new Date()
@@ -462,14 +1003,31 @@ const getDayNumber = (day: number): string | number => {
   return ''
 }
 
-// 在组件挂载时启动系统状态更新
-onMounted(() => {
-  // 立即更新一次数据
-  updateSystemStats()
+// 处理输入变化
+const handleInputChange = (e: Event, field: string) => {
+  const target = e.target as HTMLInputElement
+  const value = target.value
   
-  // 设置定时更新
-  setInterval(updateSystemStats, 5000)
-})
+  if (editingTag.value) {
+    if (field === 'name') editingTag.value.name = value
+    if (field === 'color') editingTag.value.color = value
+  } else {
+    if (field === 'name') newTag.value.name = value
+    if (field === 'color') newTag.value.color = value
+  }
+}
+
+// 处理范围滑块变化
+const handleRangeChange = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const value = parseInt(target.value)
+  
+  if (editingTag.value) {
+    editingTag.value.size = value
+  } else {
+    newTag.value.size = value
+  }
+}
 </script>
 
 <style scoped>
@@ -594,6 +1152,12 @@ onMounted(() => {
   margin-bottom: 5px;
 }
 
+.stat-label-watch {
+  font-size: 18px!important;
+  color: #ffffff!important;
+  margin-bottom: -5px;
+}
+
 .stat-value {
   margin-top: 15px;
   font-size: 28px;
@@ -601,36 +1165,187 @@ onMounted(() => {
   color: #1e293b;
 }
 
+.stat-value-watch {
+  margin-top: 5px;
+  font-size: 28px;
+  font-weight: 600;
+  color: #00aeff;
+}
+
 /* 标签云 */
 .tag-cloud {
   width: 100%;
 }
 
-.section-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1e293b;
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 15px;
 }
 
-.cloud-container {
+.section-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 10px;
+  gap: 8px;
 }
 
-.cloud-container span {
-  display: inline-block;
-  padding: 5px 10px;
-  border-radius: 15px;
-  background: rgba(0, 0, 0, 0.04);
+.action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: rgba(79, 134, 247, 0.1);
+  color: #4f86f7;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
-.cloud-container span:hover {
-  transform: scale(1.05);
+.action-btn:hover {
+  background-color: #4f86f7;
+  color: white;
+}
+
+.tag-item {
+  position: relative;
+  cursor: pointer;
+}
+
+.tag-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: none;
+  gap: 4px;
+}
+
+.tag-item:hover .tag-actions {
+  display: flex;
+}
+
+.tag-action-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.tag-action-btn.edit {
+  background-color: rgba(79, 134, 247, 0.8);
+  color: white;
+}
+
+.tag-action-btn.delete {
+  background-color: rgba(239, 68, 68, 0.8);
+  color: white;
+}
+
+.tag-action-btn:hover {
+  transform: scale(1.1);
+}
+
+/* 对话框样式 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 300px;
+  max-width: 450px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+.modal-title {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #1e293b;
+  font-size: 18px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"] {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 14px;
+}
+
+.form-group input[type="range"] {
+  width: 80%;
+  vertical-align: middle;
+}
+
+.form-group input[type="color"] {
+  width: 40px;
+  height: 30px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.modal-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn.cancel {
+  background-color: #e2e8f0;
+  color: #64748b;
+}
+
+.modal-btn.save {
+  background-color: #4f86f7;
+  color: white;
+}
+
+.modal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* 文章列表 */
@@ -840,6 +1555,14 @@ onMounted(() => {
   color: #92400e;
 }
 
+.quote-text-avatar {
+  font-size: 36px;
+  margin-left: 10%;
+  margin-right: -45%;
+  line-height: 1.6;
+  color: #11596e;
+}
+
 /* 开发进度 */
 .dev-progress {
   position: relative;
@@ -877,65 +1600,141 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
-  color: #64748b;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.progress-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .progress-item.completed {
   color: #10b981;
+  text-decoration: line-through;
 }
 
-/* 系统监测组件样式 */
-.system-monitor {
-  margin-bottom: 20px;
-  /* background: rgba(227, 242, 253, 0.0); */
+.progress-delete-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #ef4444;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.progress-item:hover .progress-delete-btn {
+  opacity: 1;
+}
+
+/* 空状态提示 */
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.5);
   border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+/* 时钟组件样式 */
+.clock-container {
+  padding: 20px;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.time {
+  font-size: 48px;
+  font-weight: 300;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.colon {
+  opacity: 1;
+  animation: blink 1s infinite;
+  margin: 0 5px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.period {
+  font-size: 18px;
+  margin-left: 15px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 400;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* 系统监控面板样式 */
+.system-monitor {
+  background: linear-gradient(135deg, rgba(255 , 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  border-radius: 12px;
+  color: white;
   overflow: hidden;
-  /* box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08); */
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(178, 204, 255, 0.3);
 }
 
 .monitor-content {
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .monitor-circle {
+  position: relative;
   width: 100%;
   display: flex;
   flex-direction: column;
-  /* align-items: center; */
-  justify-content: flex-start;
-  gap: 20px;
-  padding: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
 }
 
 .quote-container {
   display: flex;
   flex-direction: row;
-  gap: 20px;
   align-items: center;
-  width: auto;
-  margin-bottom: 0;
+  justify-content: center;
+  text-align: center;
+  margin-bottom: 20px;
 }
 
 .quote-image {
-  flex-shrink: 0;
   width: 100px;
   height: 100px;
-  border-radius: 5%;
+  border-radius: 50%;
+  margin-left: -45%;
+  margin-bottom: 0;
   overflow: hidden;
-  background-color: #eef2f8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border: 3px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .default-image {
   width: 100%;
   height: 100%;
-  position: relative;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .default-image img {
@@ -945,33 +1744,30 @@ onMounted(() => {
 }
 
 .quote-text {
-  font-size: 32px;
-  font-weight: 600;
-  color: #333;
-  line-height: 1.4;
-  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .stats-circles {
   display: flex;
-  gap: 50px;
-  margin: 20px auto;
-  /* align-items: start; */
+  justify-content: space-around;
+  width: 100%;
+  margin-top: 10px;
 }
 
 .stat-item {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 0 5px;
 }
 
 .stat-circle {
-  width: 130px;
-  height: 130px;
+  width: 120px;
+  height: 120px;
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .stat-circle svg {
@@ -980,90 +1776,26 @@ onMounted(() => {
   transform: rotate(-90deg);
 }
 
-.stat-circle path {
-  transition: stroke-dasharray 0.5s ease;
-}
-
-.stat-label {
+.stat-label-watch, .stat-value-watch {
   position: absolute;
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
+  text-align: center;
+  width: 100%;
+  color: rgb(38, 227, 252);
 }
 
-/* 响应式适配 */
-@media (max-width: 1200px) {
-  .dashboard-layout {
-    grid-template-columns: 1fr 1fr;
-  }
-  
-  .dashboard-right {
-    grid-column: span 2;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
+.stat-label-watch {
+  top: 50%;
+  left: 0;
+  transform: translateY(-20px);
+  font-size: 12px;
+  font-weight: 500;
 }
 
-@media (max-width: 768px) {
-  .dashboard {
-    padding: 10px;
-  }
-  
-  .dashboard-layout {
-    grid-template-columns: 1fr;
-  }
-  
-  .dashboard-right {
-    grid-column: span 1;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .heatmap-container {
-    padding: 10px;
-  }
-  
-  .calendar-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  
-  .completion {
-    align-self: flex-end;
-  }
-  
-  .monitor-circle {
-    flex-direction: column;
-  }
-  
-  .quote-container {
-    flex-direction: column;
-    text-align: center;
-    margin-bottom: 15px;
-  }
-  
-  .stats-circles {
-    flex-direction: row;
-    /* align-items: left; */
-    margin-left: 0;
-    /* width: 100%; */
-    justify-content: space-around;
-  }
-  
-  .quote-image {
-    width: 60px;
-    height: 60px;
-  }
-  
-  .stat-circle {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .quote-text {
-    font-size: 16px;
-  }
+.stat-value-watch {
+  top: 50%;
+  left: 0;
+  transform: translateY(2px);
+  font-size: 16px;
+  font-weight: 700;
 }
 </style> 

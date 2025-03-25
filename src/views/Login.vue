@@ -309,16 +309,20 @@
     <!-- 添加超级管理员选择模态框 -->
     <div class="modal" v-if="showAdminOptions" @click.self="showAdminOptions = false">
       <div class="modal-content">
-        <h3>欢迎，超级管理员</h3>
-        <p class="admin-welcome-text">您可以选择进入首页或管理后台</p>
+        <h3>尊敬的领主大人，全体领民欢迎您回家</h3>
+        <p class="admin-welcome-text">您要查看领地，还是处理内务呢？</p>
         <div class="modal-buttons admin-options">
           <button @click="goToHome" class="home-btn">
-            <Icon icon="mdi:home" />
-            进入首页
+            <div class="clum">
+              <Icon icon="mdi:home" class="home-btn-icon"/>
+              进入首页
+            </div>
           </button>
           <button @click="showAdminVerify = true; showAdminOptions = false" class="admin-btn">
-            <Icon icon="mdi:shield-account" />
-            进入管理后台
+            <div class="clum">
+              <Icon icon="mdi:shield-account" class="admin-btn-icon"/>
+              进入管理后台
+            </div>
           </button>
         </div>
       </div>
@@ -2080,13 +2084,15 @@ input:-webkit-autofill:active {
 
 .home-btn,
 .admin-btn {
+  width: 100px;
+  height: 180px;
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 12px;
-  border: none;
+  border: 1px solid #04e2ff49;
   border-radius: 8px;
   color: #fff;
   font-size: 1rem;
@@ -2094,17 +2100,24 @@ input:-webkit-autofill:active {
   transition: all 0.3s ease;
 }
 
+.home-btn-icon,
+.admin-btn-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+}
+
 .home-btn {
-  background: #4caf50;
+  background: #ffffff00;
 }
 
 .home-btn:hover {
-  background: #388e3c;
+  background: #2baccc;
   transform: translateY(-2px);
 }
 
 .admin-btn {
-  background: #ff9800;
+  background: #ffffff00;
 }
 
 .admin-btn:hover {

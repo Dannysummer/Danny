@@ -1,11 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '../views/Home.vue'
+// import Home from '../views/Home.vue'
 import ArticleArchiving from '../views/ArticleArchiving.vue'
 import Article from '../views/Article.vue'
 import Message from '../views/Message.vue'
 import Login from '../views/Login.vue'
 import Friends from '../views/Friends.vue'
 import AdminLayout from '../admin/layouts/AdminLayout.vue'
+import ArticleManagement from '../admin/views/ArticleManagement.vue'
+import ArticleEditor from '../admin/views/ArticleEditor.vue'
+import ArticleContent from '../admin/views/ArticleContent.vue'
 
 // 前台路由
 const frontendRoutes = [
@@ -39,6 +42,14 @@ const frontendRoutes = [
     path: '/message',
     name: 'message',
     component: Message
+  },
+  {
+    path: '/share',
+    name: 'share',
+    component: () => import('../views/Share.vue'),
+    meta: {
+      title: '分享'
+    }
   },
   {
     path: '/essays',
@@ -144,24 +155,66 @@ const adminRoutes = [
       },
       {
         path: 'articles',
-        name: 'admin-articles',
-        component: () => import('../admin/views/ArticleManagement.vue'),
-        meta: {
-          title: '文章管理'
-        }
+        name: 'ArticleManagement',
+        component: ArticleManagement,
+        meta: { requiresAuth: true, title: '文章管理' }
+      },
+      {
+        path: 'article-editor/new',
+        name: 'CreateArticle',
+        component: ArticleEditor,
+        meta: { requiresAuth: true, title: '创建文章' }
+      },
+      {
+        path: 'article-editor/:id',
+        name: 'EditArticle',
+        component: ArticleEditor,
+        props: true,
+        meta: { requiresAuth: true, title: '编辑文章' }
+      },
+      {
+        path: 'article-content/:id',
+        name: 'ViewArticle',
+        component: ArticleContent,
+        props: true,
+        meta: { requiresAuth: true, title: '查看文章' }
       },
       {
         path: 'users',
         name: 'admin-users',
-        component: () => import('../admin/views/Dashboard.vue'),
+        component: () => import('../admin/views/UserManagement.vue'),
         meta: {
           title: '用户管理'
         }
       },
       {
+        path: 'gallery',
+        name: 'admin-gallery',
+        component: () => import('../admin/views/ImageManagement.vue'),
+        meta: {
+          title: '图床管理'
+        }
+      },
+      {
+        path: 'statistics',
+        name: 'admin-statistics',
+        component: () => import('../admin/views/Statistics.vue'),
+        meta: {
+          title: '数据统计'
+        }
+      },
+      {
+        path: 'messages',
+        name: 'admin-messages',
+        component: () => import('../admin/views/Messages.vue'),
+        meta: {
+          title: '消息管理'
+        }
+      },
+      {
         path: 'settings',
         name: 'admin-settings',
-        component: () => import('../admin/views/Dashboard.vue'),
+        component: () => import('../admin/views/Settings.vue'),
         meta: {
           title: '系统设置'
         }

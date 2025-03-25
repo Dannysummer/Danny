@@ -138,6 +138,9 @@
       
       <!-- 滚动指示器 -->
       <div class="scroll-indicator" :style="{ width: scrollPercentage + '%' }"></div>
+
+      <!-- 在App组件的模板底部添加MessageNotification组件 -->
+      <MessageNotification />
     </template>
   </div>
 </template>
@@ -160,6 +163,7 @@ import FloatingLogin from './components/FloatingLogin.vue'
 // import CommentPanel from './components/CommentPanel.vue'
 // import Toast from './components/Toast.vue'
 // import Footer from './components/Footer.vue'
+import MessageNotification from '@/components/MessageNotification.vue'
 
 const themeStore = useThemeStore()
 const musicStore = useMusicStore()
@@ -498,6 +502,7 @@ body {
 
 /* 移动到全局样式文件中 */
 :root {
+  --bg-primary-transparent: rgba(255, 255, 255, 0.25);
   --bg-primary: #ffffff;
   --text-primary: #333333;
   --bg-secondary: #f4f5f5;
@@ -518,6 +523,7 @@ body {
 }
 
 .dark-theme {
+  --bg-primary-transparent: rgba(0, 0, 0, 0.15);
   --bg-primary: #1a1a1a;
   --text-primary: #ffffff;
   --bg-secondary: #121212;

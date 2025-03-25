@@ -1,3 +1,6 @@
+// 添加global对象polyfill解决sockjs-client兼容性问题
+window.global = window;
+
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'

@@ -83,7 +83,7 @@
               </div>
             </div>
             <div class="category-select">
-              <label>分类：</label>
+              <label style="color: rgb(255, 255, 255);">分类：</label>
               <select v-model="link.category">
                 <option v-for="(name, key) in categoryNames" :key="key" :value="key">
                   {{ name }}
@@ -325,7 +325,7 @@ onMounted(fetchFriendLinks)
 
 .page-header h1 {
   font-size: 24px;
-  color: rgba(0, 162, 255, 0.9);
+  color: rgb(255, 255, 255);
   margin: 0;
 }
 
@@ -472,14 +472,14 @@ onMounted(fetchFriendLinks)
 
 .friend-details h3 {
   margin: 0 0 5px;
-  font-size: 16px;
-  color: var(--text-primary);
+  font-size: 20px;
+  color: rgb(0, 183, 255);
 }
 
 .friend-details p {
   margin: 0;
   font-size: 14px;
-  color: var(--text-secondary);
+  color: rgb(255, 255, 255);
 }
 
 .friend-actions {
@@ -522,6 +522,8 @@ onMounted(fetchFriendLinks)
   background: #f4511e;
 }
 
+
+
 /* 暗色主题适配 */
 :root[class='dark-theme'] .friend-card {
   background: var(--bg-primary-dark);
@@ -548,8 +550,8 @@ onMounted(fetchFriendLinks)
 }
 
 .category-title {
-  font-size: 20px;
-  color: rgba(0, 162, 255, 0.9);
+  font-size: 24px;
+  color: rgb(255, 255, 255);
   margin-bottom: 20px;
   padding-left: 15px;
   border-left: 4px solid var(--primary-color);

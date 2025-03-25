@@ -122,6 +122,14 @@
         </div>
       </div>
     </div>
+
+    <!-- 外链跳转提示 -->
+    <ExternalLinkAlert
+      v-if="showExternalLinkAlert"
+      :url="externalLinkUrl"
+      :show="showExternalLinkAlert"
+      @close="showExternalLinkAlert = false"
+    />
   </template>
   
   <script setup lang="ts">
@@ -138,6 +146,7 @@
   import ArticleNavigation from './ArticleNavigation.vue'
   import RelatedArticles from './RelatedArticles.vue'
   import ArticleComments from './ArticleComments.vue'
+  import ExternalLinkAlert from './ExternalLinkAlert.vue'
   
   const marked = new Marked(
     {
@@ -225,6 +234,10 @@
   
   // 当前使用的模型，默认使用 DEEPSEEK
   const currentModel = ref<AIModel>(AI_MODEL.DEEPSEEK)
+  
+  // 外链跳转提示相关
+  const showExternalLinkAlert = ref(false);
+  const externalLinkUrl = ref('');
   
   const typeText = (text: string) => {
     isTyping.value = true
@@ -341,10 +354,16 @@
     generateSummary(props.article.content)
 
     window.addEventListener('scroll', updateNavPosition, { passive: true })
+
+    // 添加外链点击事件处理
+    addExternalLinkHandlers();
   })
   
   onUnmounted(() => {
     window.removeEventListener('scroll', updateNavPosition)
+    
+    // 移除外链点击事件处理
+    removeExternalLinkHandlers();
   })
   
   const copyCode = (code: string) => {
@@ -417,6 +436,66 @@
       (articleContent as HTMLElement).style.background = `rgba(0, 0, 0, ${newValue / 100})`
     }
   })
+
+  // 处理外部链接点击
+  function addExternalLinkHandlers() {
+    setTimeout(() => {
+      const contentEl = document.querySelector('.article-content');
+      if (!contentEl) return;
+
+      contentEl.addEventListener('click', handleLinkClick as EventListener);
+    }, 500); // 确保DOM已完全渲染
+  }
+
+  // 移除外链点击事件处理
+  function removeExternalLinkHandlers() {
+    const contentEl = document.querySelector('.article-content');
+    if (contentEl) {
+      contentEl.removeEventListener('click', handleLinkClick as EventListener);
+    }
+  }
+
+  // 链接点击处理函数
+  function handleLinkClick(e: MouseEvent) {
+    // 找到最近的链接元素
+    let target = e.target as HTMLElement;
+    let linkElement: HTMLAnchorElement | null = null;
+    
+    // 向上查找最近的<a>标签
+    while (target && target !== e.currentTarget) {
+      if (target.tagName === 'A') {
+        linkElement = target as HTMLAnchorElement;
+        break;
+      }
+      target = target.parentElement as HTMLElement;
+    }
+    
+    // 如果找到链接元素并且是外部链接
+    if (linkElement && isExternalLink(linkElement.href)) {
+      e.preventDefault(); // 阻止默认行为
+      externalLinkUrl.value = linkElement.href;
+      showExternalLinkAlert.value = true;
+    }
+  }
+
+  // 判断是否为外部链接
+  function isExternalLink(url: string): boolean {
+    if (!url) return false;
+    try {
+      // 解析URL
+      const parsedUrl = new URL(url);
+      const currentHost = window.location.hostname;
+      
+      // 如果链接是http/https协议，且不是当前域名，则视为外链
+      return (
+        (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') && 
+        parsedUrl.hostname !== currentHost
+      );
+    } catch (e) {
+      // URL解析错误，可能是相对路径，不是外链
+      return false;
+    }
+  }
   </script>
   
   <style scoped>

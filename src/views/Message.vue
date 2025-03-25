@@ -14,7 +14,7 @@
                  placeholder="留下你想说的话..."
                  @keydown.enter="submitDanmaku"
                  class="message-input" />
-          <button class="submit-button" @click="submitDanmaku">
+          <button class="submit-button" @click.prevent="submitDanmaku">
             <Icon icon="material-symbols:send" />
           </button>
         </div>
@@ -215,6 +215,9 @@ import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { type Comment, comments } from '../data/comments'
 import ParticlesBackground from '../components/ParticlesBackground.vue'
+import { type BulletChat, getActiveBulletChats, addBulletChat } from '../data/bulletChats'
+import { isLoggedIn } from '../utils/auth'
+import { containsSensitiveWord} from '../data/sensitiveWords'
 
 interface DanmakuMessage {
   id: number
@@ -240,81 +243,17 @@ const selectedColor = ref('#FFFFFF')
 
 let messageId = 0
 
-// 生成随机高度
-const getRandomTop = () => {
-  const containerHeight = danmakuContainer.value?.clientHeight || 400
-  const maxTop = containerHeight - 40 // 留出弹幕高度
-  return Math.floor(Math.random() * maxTop) + 'px'
-}
+// 存储所有弹幕数据
+const allBulletChats = ref<BulletChat[]>([])
+// 当前弹幕播放索引
+const currentBulletIndex = ref(0)
+// 是否正在播放弹幕
+const isPlayingBullets = ref(false)
+// 弹幕显示的时间间隔(毫秒)
+const bulletInterval = ref(2000)
 
-// 添加一个获取随机速度的函数
-const getRandomDuration = () => {
-  const minDuration = 16 // 最快8秒
-  const maxDuration = 24 // 最慢16秒
-  return Math.random() * (maxDuration - minDuration) + minDuration
-}
-
-// 添加新弹幕
-const addDanmaku = (content: string, nickname?: string, avatar?: string) => {
-  const duration = getRandomDuration()
-  const message: DanmakuMessage = {
-    id: messageId++,
-    content: nickname ? `${nickname}: ${content}` : content,
-    avatar: avatar,
-    color: '#fff',
-    style: {
-      top: getRandomTop(),
-      left: '100%',
-      color: '#fff',
-      transform: 'translateX(0)',
-      transition: `transform ${duration}s linear`
-    }
-  }
-  
-  visibleMessages.value.push(message)
-  
-  nextTick(() => {
-    const element = document.querySelector(`[data-id="${message.id}"]`) as HTMLElement
-    if (element) {
-      const width = element.offsetWidth
-      const screenWidth = window.innerWidth
-      const distance = screenWidth + width
-      
-      requestAnimationFrame(() => {
-        message.style.transform = `translateX(-${distance}px)`
-      })
-    }
-  })
-}
-
-// 提交弹幕
-const submitDanmaku = () => {
-  if (!danmakuContent.value.trim()) return
-  
-  addDanmaku(danmakuContent.value, nickname.value, selectedColor.value)
-  danmakuContent.value = ''
-}
-
-// 示例弹幕数据
-const sampleMessages = [
-  { content: '欢迎来到树洞~', avatar: '/avatars/avatar1.jpg' },
-  { content: '今天天气真好呀！', avatar: '/avatars/avatar2.jpg' },
-  { content: '写代码使我快乐 ٩(๑❛ᴗ❛๑)۶', avatar: '/avatars/avatar3.jpg' },
-  { content: '期待遇见有趣的你', avatar: '/avatars/avatar4.jpg' },
-  { content: '今天也要加油鸭！', avatar: '/avatars/avatar5.jpg' }
-]
-
-// 定期添加示例弹幕
-let danmakuInterval: number
-
-// 添加视差滚动效果
-const parallaxBg = ref<HTMLElement | null>(null)
-
-const handleParallax = () => {
-  if (!parallaxBg.value) return
-  const scrolled = window.scrollY
-  parallaxBg.value.style.transform = `translateY(${scrolled * 0.5}px)` // 0.5是视差系数，可以调整
-}
+// 清理定时器变量
+let cleanupInterval: number
 
 // 在 script setup 中添加
 const showReplyInput = ref<number | null>(null) // 控制回复输入框的显示
@@ -358,105 +297,381 @@ const submitReply = (comment: Comment) => {
   showReplyInput.value = null
 }
 
-// 在 script setup 中添加用户颜色映射
-const userColors = new Map<string, string>()
-const colorPalette = [
-  'rgba(255, 182, 193, 0.15)', // 浅粉色
-  'rgba(176, 224, 230, 0.15)', // 浅蓝色
-  'rgba(152, 251, 152, 0.15)', // 浅绿色
-  'rgba(221, 160, 221, 0.15)', // 浅紫色
-  'rgba(255, 218, 185, 0.15)', // 浅橙色
-  'rgba(230, 230, 250, 0.15)', // 淡紫色
-  'rgba(176, 196, 222, 0.15)', // 淡钢蓝
-  'rgba(255, 240, 245, 0.15)'  // 淡玫瑰色
-]
+// 生成随机高度
+// const getRandomTop = () => {
+//   const containerHeight = danmakuContainer.value?.clientHeight || 400
+//   const maxTop = containerHeight - 40 // 留出弹幕高度
+//   return Math.floor(Math.random() * maxTop) + 'px'
+// }
 
-// 获取用户颜色的函数
-const getUserColor = (nickname: string) => {
-  if (!userColors.has(nickname)) {
-    const colorIndex = userColors.size % colorPalette.length
-    const color = colorPalette[colorIndex]
-    userColors.set(nickname, color)
-  }
-  return userColors.get(nickname)
+// 添加一个获取随机速度的函数
+const getRandomDuration = () => {
+  const minDuration = 16 // 最快8秒
+  const maxDuration = 24 // 最慢16秒
+  return Math.random() * (maxDuration - minDuration) + minDuration
 }
 
-// 添加滚动函数
-const scrollDown = () => {
-  window.scrollTo({
-    top: window.innerHeight,
-    behavior: 'smooth'
-  })
-}
-
-// 修改清除弹幕的函数
-const cleanupDanmaku = () => {
-  const screenWidth = window.innerWidth
-  
-  visibleMessages.value = visibleMessages.value.filter(msg => {
-    const element = document.querySelector(`[data-id="${msg.id}"]`) as HTMLElement
-    if (!element) return false
+// 从数据源加载弹幕
+const loadBulletChats = async () => {
+  try {
+    console.log('从API获取弹幕数据')
+    const activeBulletChats = await getActiveBulletChats()
     
-    const transform = getComputedStyle(element).transform
-    const matrix = new WebKitCSSMatrix(transform)
-    
-    // 获取当前位置
-    const currentX = matrix.m41
-    
-    // 检查是否移动到屏幕外
-    if (currentX < -screenWidth * 1.5) return false
-    
-    // 检查弹幕是否停止移动
-    const prevPosition = element.dataset.prevX
-    if (prevPosition) {
-      const hasMoved = currentX !== parseFloat(prevPosition)
-      element.dataset.prevX = currentX.toString()
-      
-      if (!hasMoved) {
-        const stuckTime = parseInt(element.dataset.stuckTime || '0')
-        if (stuckTime > 1) { // 如果超过1次检查都没有移动，则移除
-          return false
-        }
-        element.dataset.stuckTime = (stuckTime + 1).toString()
-      } else {
-        element.dataset.stuckTime = '0'
-      }
+    if (activeBulletChats.length > 0) {
+      // 保存所有弹幕数据
+      allBulletChats.value = activeBulletChats
+      // 打乱弹幕顺序，提高随机性
+      shuffleArray(allBulletChats.value)
+      return activeBulletChats
     } else {
-      element.dataset.prevX = currentX.toString()
+      console.warn('获取到的弹幕数据为空')
+      return []
+    }
+  } catch (error) {
+    console.error('加载弹幕失败:', error)
+    return []
+  }
+}
+
+// 打乱数组的辅助函数
+const shuffleArray = (array: any[]) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[array[i], array[j]] = [array[j], array[i]]
+  }
+}
+
+// 开始播放弹幕
+const startPlayingBullets = () => {
+  if (isPlayingBullets.value || allBulletChats.value.length === 0) return
+  
+  isPlayingBullets.value = true
+  playNextBullet()
+}
+
+// 播放下一条弹幕
+const playNextBullet = () => {
+  if (!isPlayingBullets.value) return
+  
+  // 如果已经播放完所有弹幕，重新开始
+  if (currentBulletIndex.value >= allBulletChats.value.length) {
+    currentBulletIndex.value = 0
+    // 重新打乱弹幕顺序，保持新鲜感
+    shuffleArray(allBulletChats.value)
+  }
+  
+  const nextBullet = allBulletChats.value[currentBulletIndex.value]
+  if (nextBullet) {
+    addDanmaku(nextBullet.content, undefined, nextBullet.avatar)
+    currentBulletIndex.value++
+    
+    // 根据弹幕密度和屏幕宽度动态调整弹幕间隔
+    const density = Math.min(10, Math.max(1, Math.floor(window.innerWidth / 300)))
+    const baseInterval = bulletInterval.value
+    const randomVariation = Math.random() * 1000 - 500 // -500 到 500ms的随机变化
+    
+    // 计算下一条弹幕显示的时间间隔
+    const nextInterval = baseInterval / density + randomVariation
+    
+    // 设置合理的时间间隔范围
+    const actualInterval = Math.max(800, Math.min(3000, nextInterval))
+    
+    // 安排下一条弹幕
+    setTimeout(playNextBullet, actualInterval)
+  }
+}
+
+// 停止播放弹幕
+const stopPlayingBullets = () => {
+  isPlayingBullets.value = false
+}
+
+// 创建自定义消息方法，从之前自定义的消息框组件中移植过来
+// 这个方法与Settings.vue中的createMessage相似
+const createMessage = (content: string, type: 'success' | 'warning' | 'error' | 'info' = 'info', duration: number = 3000) => {
+  console.log('创建消息:', content, type);
+  
+  try {
+    // 确保创建全新的消息容器
+    let messageContainer = document.querySelector('.custom-message-container') as HTMLDivElement;
+    if (!messageContainer) {
+      messageContainer = document.createElement('div');
+      messageContainer.className = 'custom-message-container';
+      
+      // 为容器添加内联样式
+      messageContainer.style.position = 'fixed';
+      messageContainer.style.bottom = '20px';
+      messageContainer.style.right = '20px';
+      messageContainer.style.display = 'flex';
+      messageContainer.style.flexDirection = 'column';
+      messageContainer.style.gap = '10px';
+      messageContainer.style.zIndex = '9999';
+      messageContainer.style.maxWidth = '350px';
+      
+      document.body.appendChild(messageContainer);
+      console.log('创建了消息容器');
     }
     
-    return true
+    // 创建消息元素
+    const messageElement = document.createElement('div');
+    messageElement.className = `custom-message custom-message-${type}`;
+    messageElement.style.setProperty('--message-duration', `${duration}ms`);
+    
+    // 给消息元素添加内联样式，确保它能正确显示
+    messageElement.style.background = 'rgba(40, 45, 60, 0.85)';
+    messageElement.style.color = 'white';
+    messageElement.style.padding = '15px 20px';
+    messageElement.style.borderRadius = '8px';
+    messageElement.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.3)';
+    messageElement.style.transform = 'translateX(120%)';
+    messageElement.style.opacity = '0';
+    messageElement.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+    messageElement.style.position = 'relative';
+    messageElement.style.backdropFilter = 'blur(8px)';
+    messageElement.style.borderLeft = `4px solid ${
+      type === 'success' ? '#67c23a' : 
+      type === 'warning' ? '#e6a23c' : 
+      type === 'error' ? '#f56c6c' : '#909399'
+    }`;
+    messageElement.style.overflow = 'hidden';
+    
+    // 添加消息内容
+    const contentElement = document.createElement('div');
+    contentElement.style.fontSize = '14px';
+    contentElement.style.lineHeight = '1.5';
+    contentElement.textContent = content;
+    messageElement.appendChild(contentElement);
+    
+    // 添加进度条
+    const progressBar = document.createElement('div');
+    progressBar.style.position = 'absolute';
+    progressBar.style.bottom = '0';
+    progressBar.style.left = '0';
+    progressBar.style.height = '3px';
+    progressBar.style.width = '100%';
+    progressBar.style.backgroundColor = type === 'success' ? 'rgba(103, 194, 58, 0.6)' :
+                                       type === 'warning' ? 'rgba(230, 162, 60, 0.6)' :
+                                       type === 'error' ? 'rgba(245, 108, 108, 0.6)' :
+                                       'rgba(144, 147, 153, 0.6)';
+    progressBar.style.transition = `width ${duration}ms linear`;
+    messageElement.appendChild(progressBar);
+    
+    // 添加到容器
+    messageContainer.appendChild(messageElement);
+    console.log('消息元素已添加到容器');
+    
+    // 强制浏览器重绘
+    void messageElement.offsetHeight;
+    
+    // 显示消息（使用内联样式改变）
+    setTimeout(() => {
+      messageElement.style.transform = 'translateX(0)';
+      messageElement.style.opacity = '1';
+      
+      // 启动进度条动画
+      setTimeout(() => {
+        progressBar.style.width = '0';
+      }, 10);
+      
+      console.log('显示消息 - 更新样式');
+    }, 10);
+    
+    // 设置自动隐藏
+    setTimeout(() => {
+      messageElement.style.transform = 'translateX(120%)';
+      messageElement.style.opacity = '0';
+      console.log('消息即将隐藏 - 更新样式');
+      
+      // 设置一个安全的删除时间，不依赖于transitionend事件
+      setTimeout(() => {
+        if (messageElement.parentNode) {
+          messageElement.parentNode.removeChild(messageElement);
+          console.log('消息元素已移除');
+        }
+      }, 500); // 给过渡动画留出足够时间
+    }, duration);
+  } catch (error) {
+    console.error('创建消息框时出错:', error);
+    // 确保即使出错也能显示消息（使用alert作为备选）
+    alert(`${type}: ${content}`);
+  }
+};
+
+// 提交弹幕
+const submitDanmaku = async () => {
+  // 添加调试日志
+  console.log('提交弹幕函数被触发');
+  console.log('弹幕内容:', danmakuContent.value);
+  
+  // 检查弹幕内容是否为空
+  if (!danmakuContent.value.trim()) {
+    console.log('弹幕内容为空，终止发送');
+    createMessage('请输入弹幕内容', 'warning', 3000);
+    return;
+  }
+  
+  // 检查用户是否已登录 - 添加日志
+  const loginStatus = isLoggedIn();
+  console.log('用户登录状态:', loginStatus);
+  
+  // 检查登录状态
+  if (!loginStatus) {
+    console.log('用户未登录，显示提示消息');
+    createMessage('大人在公共场合发言要先登录一下哈', 'warning', 3000);
+    return;
+  }
+  
+  // 检查敏感词
+  const sensitiveWord = containsSensitiveWord(danmakuContent.value);
+  if (sensitiveWord) {
+    console.log('检测到敏感词:', sensitiveWord);
+    createMessage(`您的发言包含敏感词"${sensitiveWord}"，请修改后再发送`, 'error', 3000);
+    return;
+  }
+  
+  try {
+    // console.log('准备发送API请求...');
+    // 将新弹幕添加到数据模型中
+    const result = await addBulletChat(danmakuContent.value, nickname.value ? undefined : selectedColor.value);
+    // console.log('API响应:', result);
+    
+    if (result.success && result.data) {
+      // console.log('弹幕发送成功，更新UI');
+      // 添加到弹幕列表中
+      allBulletChats.value.push(result.data);
+      
+      // 立即在界面上显示
+      addDanmaku(result.data.content, nickname.value, result.data.avatar);
+      danmakuContent.value = '';
+      
+      createMessage('弹幕发送成功，当前只有您能看到，领主大人审批了其他领民才能看到哟', 'success', 5000);
+    } else {
+      // 显示具体错误信息
+      console.log('API返回了错误:', result.message);
+      createMessage(result.message || '弹幕发送失败，请稍后再试', 'error', 3000);
+    }
+  } catch (error) {
+    console.error('发送弹幕失败，详细错误:', error);
+    createMessage('弹幕发送失败，请稍后再试', 'error', 3000);
+  }
+}
+
+// 添加新弹幕 - 改进版，增加了弹道管理
+const addDanmaku = (content: string, nickname?: string, avatar?: string) => {
+  const duration = getRandomDuration()
+  
+  // 使用弹道管理系统，避免弹幕重叠
+  const lanes = 10 // 弹道数量
+  const usedLanes = new Set() // 已使用的弹道
+  
+  // 查找可用弹道
+  visibleMessages.value.forEach(msg => {
+    const laneMatch = msg.style.top.match(/(\d+)%/)
+    if (laneMatch) {
+      const lane = parseInt(laneMatch[1]) / 10
+      usedLanes.add(lane)
+    }
+  })
+  
+  // 选择最空闲的弹道
+  let selectedLane = Math.floor(Math.random() * lanes)
+  for (let i = 0; i < lanes; i++) {
+    if (!usedLanes.has(i)) {
+      selectedLane = i
+      break
+    }
+  }
+  
+  // 计算弹幕顶部位置
+  const top = `${selectedLane * 10}%`
+  
+  const message: DanmakuMessage = {
+    id: messageId++,
+    content: nickname ? `${nickname}: ${content}` : content,
+    avatar: avatar,
+    color: getRandomColor(), // 使用随机颜色增加视觉多样性
+    style: {
+      top,
+      left: '100%',
+      color: getRandomColor(),
+      transform: 'translateX(0)',
+      transition: `transform ${duration}s linear`
+    }
+  }
+  
+  visibleMessages.value.push(message)
+  
+  nextTick(() => {
+    const element = document.querySelector(`[data-id="${message.id}"]`) as HTMLElement
+    if (element) {
+      const width = element.offsetWidth
+      const screenWidth = window.innerWidth
+      const distance = screenWidth + width
+      
+      requestAnimationFrame(() => {
+        message.style.transform = `translateX(-${distance}px)`
+      })
+    }
   })
 }
 
-// 修改 onMounted 钩子，添加清理定时器
-let cleanupInterval: number
+// 生成随机颜色
+const getRandomColor = () => {
+  const colors = [
+    '#FFFFFF', // 白色
+    // '#FFD700', // 金色
+    // '#FF69B4', // 粉红色
+    // '#00BFFF', // 天蓝色
+    // '#7FFF00', // 绿黄色
+    // '#FF6347', // 番茄色
+    // '#FFA500', // 橙色
+    // '#9370DB'  // 紫色
+  ]
+  return colors[Math.floor(Math.random() * colors.length)]
+}
 
-onMounted(() => {
-  // 初始添加一些弹幕
-  sampleMessages.forEach((msg, index) => {
-    setTimeout(() => {
-      addDanmaku(msg.content, undefined, msg.avatar)
-    }, index * 800)
-  })
+// 修改 onMounted 钩子，处理异步加载
+onMounted(async () => {
+  // 从数据源一次性加载所有弹幕
+  const bulletChatsData = await loadBulletChats()
   
-  // 每隔一段时间随机添加弹幕
-  danmakuInterval = window.setInterval(() => {
-    const randomMsg = sampleMessages[Math.floor(Math.random() * sampleMessages.length)]
-    addDanmaku(randomMsg.content, undefined, randomMsg.avatar)
-  }, 2000)
-
-  // 修改清理定时器间隔为 100ms (0.1秒)
+  // 初始显示几条弹幕，营造氛围
+  const initialCount = Math.min(bulletChatsData.length, 5)
+  for (let i = 0; i < initialCount; i++) {
+    const index = Math.floor(Math.random() * bulletChatsData.length)
+    const chat = bulletChatsData[index]
+    if (chat.status === 'APPROVED') {
+      setTimeout(() => {
+        addDanmaku(chat.content, undefined, chat.avatar)
+      }, i * 800)
+    }
+  }
+  
+  // 短暂延迟后开始循环播放弹幕
+  setTimeout(() => {
+    startPlayingBullets()
+  }, initialCount * 800 + 1000)
+  
+  // 清理定时器间隔
   cleanupInterval = window.setInterval(cleanupDanmaku, 100)
+  
+  // 监听窗口大小变化，调整弹幕间隔
+  window.addEventListener('resize', () => {
+    bulletInterval.value = Math.max(1000, Math.min(3000, window.innerWidth / 4))
+  })
 
   window.addEventListener('scroll', handleParallax)
+  
+  // 初始化弹幕间隔
+  bulletInterval.value = Math.max(1000, Math.min(3000, window.innerWidth / 4))
 })
 
-// 修改 onUnmounted 钩子，清除定时器
+// 修改 onUnmounted 钩子，清除资源
 onUnmounted(() => {
-  clearInterval(danmakuInterval)
+  stopPlayingBullets()
   clearInterval(cleanupInterval)
   window.removeEventListener('scroll', handleParallax)
+  window.removeEventListener('resize', () => {})
 })
 
 // 将 comments 转换为 ref
@@ -579,6 +794,86 @@ const changePage = (page: number) => {
     behavior: 'smooth'
   })
 }}
+
+// 添加滚动函数
+const scrollDown = () => {
+  window.scrollTo({
+    top: window.innerHeight,
+    behavior: 'smooth'
+  })
+}
+
+// 修改清除弹幕的函数
+const cleanupDanmaku = () => {
+  const screenWidth = window.innerWidth
+  
+  visibleMessages.value = visibleMessages.value.filter(msg => {
+    const element = document.querySelector(`[data-id="${msg.id}"]`) as HTMLElement
+    if (!element) return false
+    
+    const transform = getComputedStyle(element).transform
+    const matrix = new WebKitCSSMatrix(transform)
+    
+    // 获取当前位置
+    const currentX = matrix.m41
+    
+    // 检查是否移动到屏幕外
+    if (currentX < -screenWidth * 1.5) return false
+    
+    // 检查弹幕是否停止移动
+    const prevPosition = element.dataset.prevX
+    if (prevPosition) {
+      const hasMoved = currentX !== parseFloat(prevPosition)
+      element.dataset.prevX = currentX.toString()
+      
+      if (!hasMoved) {
+        const stuckTime = parseInt(element.dataset.stuckTime || '0')
+        if (stuckTime > 1) { // 如果超过1次检查都没有移动，则移除
+          return false
+        }
+        element.dataset.stuckTime = (stuckTime + 1).toString()
+      } else {
+        element.dataset.stuckTime = '0'
+      }
+    } else {
+      element.dataset.prevX = currentX.toString()
+    }
+    
+    return true
+  })
+}
+
+// 添加视差滚动效果
+const parallaxBg = ref<HTMLElement | null>(null)
+
+const handleParallax = () => {
+  if (!parallaxBg.value) return
+  const scrolled = window.scrollY
+  parallaxBg.value.style.transform = `translateY(${scrolled * 0.5}px)` // 0.5是视差系数，可以调整
+}
+
+// 在 script setup 中添加用户颜色映射
+const userColors = new Map<string, string>()
+const colorPalette = [
+  'rgba(255, 182, 193, 0.15)', // 浅粉色
+  'rgba(176, 224, 230, 0.15)', // 浅蓝色
+  'rgba(152, 251, 152, 0.15)', // 浅绿色
+  'rgba(221, 160, 221, 0.15)', // 浅紫色
+  'rgba(255, 218, 185, 0.15)', // 浅橙色
+  'rgba(230, 230, 250, 0.15)', // 淡紫色
+  'rgba(176, 196, 222, 0.15)', // 淡钢蓝
+  'rgba(255, 240, 245, 0.15)'  // 淡玫瑰色
+]
+
+// 获取用户颜色的函数
+const getUserColor = (nickname: string) => {
+  if (!userColors.has(nickname)) {
+    const colorIndex = userColors.size % colorPalette.length
+    const color = colorPalette[colorIndex]
+    userColors.set(nickname, color)
+  }
+  return userColors.get(nickname)
+}
 </script>
 
 <style scoped>
@@ -595,6 +890,102 @@ const changePage = (page: number) => {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* 自定义消息框样式 */
+.custom-message-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+  max-width: 350px;
+}
+
+.custom-message {
+  background: rgba(40, 45, 60, 0.85);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  transform: translateX(120%);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  position: relative;
+  backdrop-filter: blur(8px);
+  border-left: 4px solid transparent;
+  overflow: hidden;
+}
+
+.custom-message.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.custom-message.leave {
+  transform: translateX(120%);
+  opacity: 0;
+}
+
+.custom-message-content {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.custom-message-success {
+  border-left-color: #67c23a;
+}
+
+.custom-message-warning {
+  border-left-color: #e6a23c;
+}
+
+.custom-message-error {
+  border-left-color: #f56c6c;
+}
+
+.custom-message-info {
+  border-left-color: #909399;
+}
+
+/* 进度条使用 ::after 伪类 */
+.custom-message::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.3);
+  animation: message-progress linear;
+  animation-duration: var(--message-duration, 3000ms);
+}
+
+.custom-message-success::after {
+  background-color: rgba(103, 194, 58, 0.6);
+}
+
+.custom-message-warning::after {
+  background-color: rgba(230, 162, 60, 0.6);
+}
+
+.custom-message-error::after {
+  background-color: rgba(245, 108, 108, 0.6);
+}
+
+.custom-message-info::after {
+  background-color: rgba(144, 147, 153, 0.6);
+}
+
+@keyframes message-progress {
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0;
+  }
 }
 
 /* 修改原有的背景图层，改为只在暗色主题下显示 */
@@ -635,7 +1026,6 @@ const changePage = (page: number) => {
 .dark-theme .comment-section {
   background: #0e0e0e !important;
   border-color: rgba(135, 206, 235, 0.25);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
 }
 
 .message-header {
@@ -1936,6 +2326,105 @@ const changePage = (page: number) => {
     min-width: 32px;
     height: 32px;
     font-size: 13px;
+  }
+}
+</style>
+
+<!-- 添加全局样式，确保消息框样式能应用于动态创建的元素 -->
+<style>
+/* 自定义消息框样式 */
+.custom-message-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+  max-width: 350px;
+}
+
+.custom-message {
+  background: rgba(40, 45, 60, 0.85);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  transform: translateX(120%);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  position: relative;
+  backdrop-filter: blur(8px);
+  border-left: 4px solid transparent;
+  overflow: hidden;
+}
+
+.custom-message.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.custom-message.leave {
+  transform: translateX(120%);
+  opacity: 0;
+}
+
+.custom-message-content {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.custom-message-success {
+  border-left-color: #67c23a;
+}
+
+.custom-message-warning {
+  border-left-color: #e6a23c;
+}
+
+.custom-message-error {
+  border-left-color: #f56c6c;
+}
+
+.custom-message-info {
+  border-left-color: #909399;
+}
+
+/* 进度条使用 ::after 伪类 */
+.custom-message::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.3);
+  animation: message-progress linear;
+  animation-duration: var(--message-duration, 3000ms);
+}
+
+.custom-message-success::after {
+  background-color: rgba(103, 194, 58, 0.6);
+}
+
+.custom-message-warning::after {
+  background-color: rgba(230, 162, 60, 0.6);
+}
+
+.custom-message-error::after {
+  background-color: rgba(245, 108, 108, 0.6);
+}
+
+.custom-message-info::after {
+  background-color: rgba(144, 147, 153, 0.6);
+}
+
+@keyframes message-progress {
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0;
   }
 }
 </style> 

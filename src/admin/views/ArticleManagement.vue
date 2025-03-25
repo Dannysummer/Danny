@@ -2,10 +2,16 @@
   <div class="article-management">
     <div class="page-header">
       <h1 class="page-title">文章管理</h1>
-      <button class="add-button" @click="openArticleEditor()">
-        <Icon icon="mdi:plus" />
-        <span>写文章</span>
-      </button>
+      <div class="header-actions">
+        <button class="add-button" @click="showUploadDialog = true">
+          <Icon icon="mdi:upload" />
+          <span>上传文章</span>
+        </button>
+        <button class="add-button" @click="createNewArticle">
+          <Icon icon="mdi:plus" />
+          <span>写文章</span>
+        </button>
+      </div>
     </div>
     
     <!-- 搜索和筛选区域 -->
@@ -61,57 +67,85 @@
             <th class="checkbox-col">
               <input type="checkbox" v-model="selectAll" @change="toggleSelectAll" />
             </th>
-            <th>标题</th>
-            <th>分类</th>
-            <th>标签</th>
+            <th>标题/文件</th>
+            <th>创建时间</th>
+            <th>更新时间</th>
             <th>状态</th>
-            <th>发布时间</th>
-            <th>浏览量</th>
-            <th>评论数</th>
+            <th>标签</th>
+            <th>文件链接</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="article in paginatedArticles" :key="article.id" :class="{ 'selected': selectedArticles.includes(article.id) }">
+          <tr v-for="article in paginatedArticles" :key="article.id" 
+              :class="{ 'selected': selectedArticles.includes(article.id), 'featured': article.isFeatured }">
             <td class="checkbox-col">
               <input type="checkbox" :value="article.id" v-model="selectedArticles" />
             </td>
             <td class="title-col">
-              <div class="article-title">{{ article.title }}</div>
-              <div class="article-excerpt">{{ article.excerpt }}</div>
-            </td>
-            <td>{{ article.category }}</td>
-            <td class="tags-col">
-              <div class="tag-list">
-                <span 
-                  v-for="tag in article.tags" 
-                  :key="tag" 
-                  class="tag"
-                >
-                  {{ tag }}
+              <div class="article-title">
+                {{ article.title }}
+                <span class="featured-badge" v-if="article.isFeatured">
+                  <Icon icon="mdi:star" />精选
                 </span>
               </div>
+              <div class="article-file-info">
+                <span class="file-path">{{ article.filePath || article.filepath || '无路径' }}</span>
+                <span class="file-size">{{ formatFileSize(article.fileSize || article.filesize) }}</span>
+              </div>
+            </td>
+            <td>{{ formatDate(article.createdAt) }}</td>
+            <td>{{ formatDate(article.updatedAt) }}</td>
+            <td>
+              <div class="status-display" @click="toggleStatusDropdown(article.id)">
+                <div :class="['status-badge', getStatusClass(article.status)]">
+                  {{ getStatusText(article.status) }}
+                </div>
+                <div class="status-dropdown" v-if="activeDropdown === article.id">
+                  <div 
+                    class="status-option" 
+                    :class="{ active: article.status === 'PUBLISHED' }"
+                    @click.stop="updateArticleStatus(article.id, 'PUBLISHED')">
+                    已发布
+                  </div>
+                  <div 
+                    class="status-option" 
+                    :class="{ active: article.status === 'DRAFT' }"
+                    @click.stop="updateArticleStatus(article.id, 'DRAFT')">
+                    草稿
+                  </div>
+                  <div 
+                    class="status-option" 
+                    :class="{ active: article.status === 'ARCHIVED' }"
+                    @click.stop="updateArticleStatus(article.id, 'ARCHIVED')">
+                    已归档
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="tags-col">
+              <div class="article-tags" v-if="article.tagArray && article.tagArray.length">
+                <span class="tag" v-for="tag in article.tagArray" :key="tag">{{ tag }}</span>
+              </div>
+              <div class="article-tags" v-else-if="article.tags">
+                <span class="tag" v-for="tag in article.tags.split(',')" :key="tag">{{ tag }}</span>
+              </div>
+              <span class="no-tags" v-else>无标签</span>
             </td>
             <td>
-              <span 
-                class="status-badge" 
-                :class="{
-                  'published': article.status === 'published',
-                  'draft': article.status === 'draft',
-                  'archived': article.status === 'archived'
-                }"
-              >
-                {{ 
-                  article.status === 'published' ? '已发布' : 
-                  article.status === 'draft' ? '草稿' : '已归档' 
-                }}
-              </span>
+              <a :href="article.fileUrl" target="_blank" class="file-link" v-if="article.fileUrl">
+                <Icon icon="mdi:link" />
+                查看文件
+              </a>
+              <span v-else class="no-link">无链接</span>
             </td>
-            <td>{{ formatDate(article.publishDate) }}</td>
-            <td>{{ article.views }}</td>
-            <td>{{ article.comments }}</td>
             <td class="actions-col">
               <div class="action-buttons">
+                <button class="action-btn feature" 
+                        @click="toggleFeatureStatus(article.id, !article.isFeatured)"
+                        :title="article.isFeatured ? '取消精选' : '设为精选'">
+                  <Icon :icon="article.isFeatured ? 'mdi:star' : 'mdi:star-outline'" />
+                </button>
                 <button class="action-btn edit" @click="openArticleEditor(article.id)" title="编辑">
                   <Icon icon="mdi:pencil" />
                 </button>
@@ -127,15 +161,15 @@
           
           <!-- 空状态 -->
           <tr v-if="paginatedArticles.length === 0">
-            <td colspan="9" class="empty-state">
+            <td colspan="6" class="empty-state">
               <div v-if="isLoading">
                 <Icon icon="mdi:loading" class="loading-icon spin" />
                 <p>加载中...</p>
               </div>
               <div v-else>
                 <Icon icon="mdi:file-document-outline" class="empty-icon" />
-                <p>没有找到符合条件的文章</p>
-                <button class="reset-button" @click="resetFilters">重置筛选条件</button>
+                <p>没有找到文章</p>
+                <button class="upload-button" @click="showUploadDialog = true">上传Markdown文章</button>
               </div>
             </td>
           </tr>
@@ -209,93 +243,181 @@
       </div>
     </div>
     
-    <!-- 确认删除对话框 -->
+    <!-- 修改确认删除对话框，支持单个和批量删除 -->
     <div class="confirm-dialog" v-if="showDeleteConfirm">
       <div class="dialog-content">
         <div class="dialog-header">
-          <h3>确认删除</h3>
+          <h3>{{ articleToDelete ? '确认删除' : '确认批量删除' }}</h3>
           <button class="close-btn" @click="cancelDelete">
             <Icon icon="mdi:close" />
           </button>
         </div>
         <div class="dialog-body">
-          <p v-if="selectedArticles.length > 1">确定要删除这 {{ selectedArticles.length }} 篇文章吗？此操作不可恢复。</p>
-          <p v-else>确定要删除这篇文章吗？此操作不可恢复。</p>
+          <p v-if="articleToDelete">确定要删除这篇文章吗？此操作不可恢复。</p>
+          <p v-else>确定要删除这 {{ selectedArticles.length }} 篇文章吗？此操作不可恢复。</p>
         </div>
         <div class="dialog-footer">
           <button class="cancel-btn" @click="cancelDelete">取消</button>
-          <button class="confirm-btn" @click="deleteArticles">确认删除</button>
+          <button class="confirm-btn" @click="articleToDelete ? deleteArticle() : deleteArticles()">确认删除</button>
         </div>
       </div>
     </div>
+
+    <!-- 添加上传对话框 -->
+    <div class="upload-dialog" v-if="showUploadDialog">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <h3>上传Markdown文章</h3>
+          <button class="close-btn" @click="cancelUpload">
+            <Icon icon="mdi:close" />
+          </button>
+        </div>
+        <div class="dialog-body">
+          <div class="form-group">
+            <label for="article-title">文章标题</label>
+            <input 
+              type="text" 
+              id="article-title" 
+              v-model="uploadForm.title" 
+              placeholder="输入文章标题（可选，默认使用文件名）"
+            />
+          </div>
+          <div class="form-group">
+            <label for="article-file">选择Markdown文件</label>
+            <div 
+              class="file-drop-area" 
+              :class="{ 'dragging': isDragging, 'has-file': uploadForm.file }"
+              @dragover.prevent="handleDragOver"
+              @dragleave.prevent="handleDragLeave"
+              @drop.prevent="handleDrop"
+            >
+              <input 
+                type="file" 
+                id="article-file" 
+                class="file-input" 
+                @change="handleFileSelected" 
+                accept=".md,.markdown,.txt"
+                ref="fileInput"
+              />
+              <div class="file-info" v-if="uploadForm.file">
+                <Icon icon="mdi:file-document" class="file-icon" />
+                <div class="file-details">
+                  <div class="file-name">{{ uploadForm.file.name }}</div>
+                  <div class="file-size">{{ formatFileSize(uploadForm.file.size) }}</div>
+                </div>
+                <button class="remove-file-btn" @click.stop="removeFile">
+                  <Icon icon="mdi:close" />
+                </button>
+              </div>
+              <div class="drop-message" v-else>
+                <Icon icon="mdi:upload" class="upload-icon" />
+                <span>拖放Markdown文件到此处或</span>
+                <button class="browse-btn" @click.stop="selectFile">浏览文件</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 上传进度条 -->
+          <div class="progress-container" v-if="uploadProgress.show">
+            <div class="progress-info">
+              <span class="progress-status">
+                {{ uploadProgress.status === 'COMPLETED' ? '上传完成' : 
+                   uploadProgress.status === 'FAILED' ? '上传失败' : 
+                   `正在上传 (${Math.round(uploadProgress.percentage)}%)` }}
+              </span>
+              <span class="progress-bytes" v-if="uploadProgress.status === 'IN_PROGRESS'">
+                {{ formatFileSize(uploadProgress.bytesTransferred) }} / {{ formatFileSize(uploadProgress.totalBytes) }}
+              </span>
+            </div>
+            <div class="progress-bar">
+              <div 
+                class="progress-inner" 
+                :style="{ width: uploadProgress.percentage + '%' }"
+                :class="{
+                  'progress-complete': uploadProgress.status === 'COMPLETED',
+                  'progress-error': uploadProgress.status === 'FAILED'
+                }"
+              ></div>
+            </div>
+            <div class="progress-error-message" v-if="uploadProgress.errorMessage">
+              {{ uploadProgress.errorMessage }}
+            </div>
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <button class="cancel-btn" @click="cancelUpload" :disabled="isUploading">取消</button>
+          <button 
+            class="confirm-btn" 
+            @click="uploadFile" 
+            :disabled="!uploadForm.file || isUploading"
+          >
+            {{ isUploading ? '上传中...' : '上传文章' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加通知组件 -->
+    <MessageNotification ref="notification" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { Icon } from '@iconify/vue';
+import { useRouter } from 'vue-router';
+// @ts-ignore
+const SockJS = window.SockJS;
+// @ts-ignore
+const Stomp = window.Stomp;
+import { useUserStore } from '@/stores/user';
+// 导入消息通知组件
+import MessageNotification from '@/components/MessageNotification.vue';
 
-// 模拟数据
-const categories = ref([
-  { id: 1, name: '神经网络' },
-  { id: 2, name: '机器学习' },
-  { id: 3, name: '人工智能' },
-  { id: 4, name: 'Web开发' },
-  { id: 5, name: '性能优化' },
-  { id: 6, name: '后端开发' },
-  { id: 7, name: '其他' }
-]);
+interface Article {
+  id: number;
+  title: string;
+  filepath?: string;
+  filesize?: number;
+  fileUrl?: string;
+  filePath?: string;
+  fileSize?: number;
+  status: string; // 修改为更通用的类型
+  category?: string;
+  tags?: string;
+  tagArray?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  views?: number;
+  isFeatured?: boolean;
+}
 
-// 生成模拟文章数据
-const generateMockArticles = (count: number) => {
-  const statuses = ['published', 'draft', 'archived'];
-  const articles = [];
-  
-  for (let i = 1; i <= count; i++) {
-    const categoryIndex = Math.floor(Math.random() * categories.value.length);
-    const category = categories.value[categoryIndex];
-    
-    // 生成随机标签
-    const allTags = ['JavaScript', 'Python', 'Docker', '深度学习', 'Node.js', 'Vue', 'React', 'TypeScript', 'CSS', '算法'];
-    const tagCount = Math.floor(Math.random() * 3) + 1;
-    const tags: string[] = [];
-    
-    for (let j = 0; j < tagCount; j++) {
-      const tagIndex = Math.floor(Math.random() * allTags.length);
-      const tag = allTags[tagIndex];
-      if (!tags.includes(tag)) {
-        tags.push(tag);
-      }
-    }
-    
-    // 生成随机日期（过去一年内）
-    const now = new Date();
-    const pastDate = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
-    
-    articles.push({
-      id: i,
-      title: `文章标题 ${i}`,
-      excerpt: `这是文章 ${i} 的摘要，简短描述了文章的主要内容...`,
-      content: `这是文章 ${i} 的完整内容，详细展开...`,
-      category: category.name,
-      categoryId: category.id,
-      tags: tags,
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      publishDate: pastDate,
-      views: Math.floor(Math.random() * 1000),
-      comments: Math.floor(Math.random() * 50)
-    });
-  }
-  
-  return articles;
-};
+interface CategoryType {
+  id: number;
+  name: string;
+}
 
-// 状态变量
-const articles = ref(generateMockArticles(50));
+interface UploadProgress {
+  show: boolean;
+  uploadId?: string;
+  filename?: string;
+  bytesTransferred: number;
+  totalBytes: number;
+  percentage: number;
+  status: 'STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  errorMessage: string | null;
+}
+
+const router = useRouter();
+const userStore = useUserStore();
+
+// 修改API基础URL
+const API_BASE_URL = 'http://localhost:8088/api';
+const totalItems = ref(0);
+
+// 状态和变量定义
+const articles = ref<Article[]>([]);
 const searchQuery = ref('');
-const categoryFilter = ref('');
-const statusFilter = ref('');
-const sortBy = ref('newest');
 const selectedArticles = ref<number[]>([]);
 const selectAll = ref(false);
 const currentPage = ref(1);
@@ -304,22 +426,61 @@ const isLoading = ref(false);
 const showDeleteConfirm = ref(false);
 const articleToDelete = ref<number | null>(null);
 
-// 根据筛选条件过滤文章
+// 修改分类变量类型
+const categories = ref<CategoryType[]>([]);
+const categoryFilter = ref('');
+const statusFilter = ref('');
+const sortBy = ref('newest');
+
+// 上传对话框相关状态
+const showUploadDialog = ref(false);
+const isDragging = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+const isUploading = ref(false);
+const stompClient = ref<any>(null);
+const uploadProgress = ref<UploadProgress>({
+  show: false,
+  bytesTransferred: 0,
+  totalBytes: 0,
+  percentage: 0,
+  status: 'STARTED',
+  errorMessage: null
+});
+
+const uploadForm = ref({
+  title: '',
+  file: null as File | null
+});
+
+// 修改notification引用类型
+const notification = ref<InstanceType<typeof MessageNotification> | null>(null);
+
+// 状态相关
+const activeDropdown = ref<number | null>(null);
+
+// 修改获取认证头部的方法
+const getAuthHeader = (): HeadersInit => {
+  return {
+    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+    'Referer': 'https://www.dannysummer.asia'
+  };
+};
+
+// 修改过滤逻辑
 const filteredArticles = computed(() => {
   let result = [...articles.value];
   
-  // 搜索过滤
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     result = result.filter(article => 
       article.title.toLowerCase().includes(query) || 
-      article.content.toLowerCase().includes(query)
+      (article.filepath && article.filepath.toLowerCase().includes(query))
     );
   }
   
   // 分类过滤
   if (categoryFilter.value) {
-    result = result.filter(article => article.categoryId.toString() === categoryFilter.value);
+    result = result.filter(article => article.category === categoryFilter.value);
   }
   
   // 状态过滤
@@ -329,19 +490,16 @@ const filteredArticles = computed(() => {
   
   // 排序
   result.sort((a, b) => {
-    switch (sortBy.value) {
-      case 'newest':
-        return new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime();
-      case 'oldest':
-        return new Date(a.publishDate).getTime() - new Date(b.publishDate).getTime();
-      case 'updated':
-        // 假设有 updateDate 字段，这里简化为使用 publishDate
-        return new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime();
-      case 'views':
-        return b.views - a.views;
-      default:
-        return 0;
+    if (sortBy.value === 'newest') {
+      return new Date(a.createdAt || '').getTime() - new Date(b.createdAt || '').getTime();
+    } else if (sortBy.value === 'oldest') {
+      return new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime();
+    } else if (sortBy.value === 'updated') {
+      return new Date(a.updatedAt || '').getTime() - new Date(b.updatedAt || '').getTime();
+    } else if (sortBy.value === 'views') {
+      return (b.views || 0) - (a.views || 0);
     }
+    return 0;
   });
   
   return result;
@@ -430,51 +588,431 @@ const resetFilters = () => {
   currentPage.value = 1;
 };
 
-// 切换全选
+// 处理选择与删除
 const toggleSelectAll = () => {
   if (selectAll.value) {
-    selectedArticles.value = paginatedArticles.value.map(article => article.id);
+    selectedArticles.value = filteredArticles.value.map(article => article.id);
   } else {
     selectedArticles.value = [];
   }
 };
 
-// 监听选定文章的变化，更新全选状态
-watch(selectedArticles, (newValue: number[]) => {
-  selectAll.value = newValue.length === paginatedArticles.value.length && newValue.length > 0;
+watch(selectedArticles, () => {
+  selectAll.value = selectedArticles.value.length > 0 && 
+    selectedArticles.value.length === filteredArticles.value.length;
 });
 
 // 格式化日期
-const formatDate = (date: Date) => {
-  return new Date(date).toLocaleDateString('zh-CN', {
+const formatDate = (dateString?: string): string => {
+  if (!dateString) return '未知';
+  const date = new Date(dateString);
+  return date.toLocaleString('zh-CN', {
     year: 'numeric',
-    month: 'short',
-    day: 'numeric'
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
   });
 };
 
-// 文章编辑器
-const openArticleEditor = (id?: number) => {
-  if (id) {
-    // 编辑现有文章
-    console.log(`编辑文章 ID: ${id}`);
-  } else {
-    // 新建文章
-    console.log('新建文章');
+// 格式化文件大小
+const formatFileSize = (bytes?: number): string => {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+};
+
+// 获取文章列表
+const fetchArticles = async () => {
+  isLoading.value = true;
+  try {
+    const response = await fetch(`${API_BASE_URL}/article/list`, {
+      credentials: 'include',
+      headers: getAuthHeader()
+    });
+    
+    if (!response.ok) {
+      throw new Error('获取文章列表失败');
+    }
+    
+    const data = await response.json();
+    articles.value = data.data || [];
+    totalItems.value = data.total || articles.value.length;
+  } catch (error) {
+    console.error('获取文章列表失败:', error);
+    showNotification('获取文章列表失败', 'error');
+  } finally {
+    isLoading.value = false;
   }
+};
+
+// 文件上传相关方法
+const selectFile = () => {
+  if (fileInput.value) {
+    fileInput.value.click();
+  }
+};
+
+const handleFileSelected = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    const file = target.files[0];
+    if (file.type === 'text/markdown' || file.name.endsWith('.md')) {
+      uploadForm.value.file = file;
+      // 如果没有设置标题，使用文件名(不含扩展名)作为默认标题
+      if (!uploadForm.value.title) {
+        uploadForm.value.title = file.name.replace(/\.md$/, '');
+      }
+    } else {
+      showNotification('请选择Markdown文件(.md)', 'warning');
+      target.value = '';
+    }
+  }
+};
+
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault();
+  isDragging.value = true;
+};
+
+const handleDragLeave = () => {
+  isDragging.value = false;
+};
+
+const handleDrop = (event: DragEvent) => {
+  event.preventDefault();
+  isDragging.value = false;
+  
+  if (event.dataTransfer && event.dataTransfer.files.length > 0) {
+    const file = event.dataTransfer.files[0];
+    if (file.type === 'text/markdown' || file.name.endsWith('.md')) {
+      uploadForm.value.file = file;
+      // 如果没有设置标题，使用文件名(不含扩展名)作为默认标题
+      if (!uploadForm.value.title) {
+        uploadForm.value.title = file.name.replace(/\.md$/, '');
+      }
+    } else {
+      showNotification('请选择Markdown文件(.md)', 'warning');
+    }
+  }
+};
+
+// 修改上传文件的方法
+const uploadWithoutProgress = async (file: File, title: string) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    
+    const response = await fetch(`${API_BASE_URL}/article/upload`, {
+      method: 'POST',
+      credentials: 'include',  // 添加凭证
+      headers: getAuthHeader(),
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || '上传失败');
+    }
+    
+    const result = await response.json();
+    showNotification('上传成功', 'success');
+    showUploadDialog.value = false;
+    resetUploadForm();
+    fetchArticles();
+  } catch (error) {
+    console.error('上传文件时出错:', error);
+    throw error;
+  }
+};
+
+// 修改获取上传策略的地址
+const getUploadPolicy = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/article/policy`, {
+      headers: getAuthHeader()
+    });
+    
+    if (!response.ok) {
+      throw new Error('获取上传策略失败');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('获取上传策略时出错:', error);
+    throw error;
+  }
+};
+
+// 修改带进度的上传方法
+const uploadWithProgressRequest = async (file: File, title: string, uploadId: string) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    formData.append('uploadId', uploadId);
+    
+    const response = await fetch(`${API_BASE_URL}/article/upload-with-progress`, {
+      method: 'POST',
+      credentials: 'include',  // 添加凭证
+      headers: getAuthHeader(),
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || '上传失败');
+    }
+  } catch (error) {
+    console.error('上传文件时出错:', error);
+    uploadProgress.value.status = 'FAILED';
+    uploadProgress.value.errorMessage = error instanceof Error ? error.message : String(error);
+  }
+};
+
+// 修改WebSocket连接地址
+const uploadWithProgress = async (file: File, title: string) => {
+  if (!file) {
+    showNotification('请选择要上传的Markdown文件', 'warning');
+    return;
+  }
+  
+  if (!title.trim()) {
+    showNotification('请输入文章标题', 'warning');
+    return;
+  }
+  
+  try {
+    isUploading.value = true;
+    const policy = await getUploadPolicy();
+    const uploadId = policy.uploadId;
+    
+    // 使用SockJS和Stomp连接WebSocket
+    if (SockJS && Stomp) {
+      const socket = new SockJS('http://localhost:8088/ws');
+      stompClient.value = Stomp.over(socket);
+      
+      // 连接成功后订阅进度通知
+      stompClient.value.connect({}, () => {
+        stompClient.value.subscribe(`/topic/upload-progress/${uploadId}`, (message: any) => {
+          const progress = JSON.parse(message.body);
+          
+          uploadProgress.value = {
+            show: true,
+            uploadId: uploadId,
+            filename: file.name,
+            bytesTransferred: progress.bytesTransferred,
+            totalBytes: progress.totalBytes,
+            percentage: Math.round((progress.bytesTransferred / progress.totalBytes) * 100),
+            status: progress.status,
+            errorMessage: progress.errorMessage
+          };
+          
+          if (progress.status === 'COMPLETED') {
+            showNotification('上传成功', 'success');
+            disconnectWebSocket();
+            showUploadDialog.value = false;
+            resetUploadForm();
+            fetchArticles(); // 刷新文章列表
+          } else if (progress.status === 'FAILED') {
+            showNotification(`上传失败: ${progress.errorMessage || '未知错误'}`, 'error');
+            disconnectWebSocket();
+          }
+        });
+        
+        // 订阅成功后开始上传
+        uploadWithProgressRequest(file, title, uploadId);
+      }, (error: any) => {
+        console.error('WebSocket连接失败:', error);
+        // 如果WebSocket连接失败，使用不带进度的上传
+        uploadWithoutProgress(file, title);
+      });
+    } else {
+      // 如果SockJS或Stomp不可用，使用不带进度的上传
+      uploadWithoutProgress(file, title);
+    }
+  } catch (error) {
+    console.error('准备上传时出错:', error);
+    // 如果获取上传策略失败，使用不带进度的上传
+    uploadWithoutProgress(file, title);
+  } finally {
+    isUploading.value = false;
+  }
+};
+
+// 断开WebSocket连接
+const disconnectWebSocket = () => {
+  if (stompClient.value && stompClient.value.connected) {
+    stompClient.value.disconnect();
+    stompClient.value = null;
+  }
+  
+  uploadProgress.value.show = false;
+};
+
+// 重置上传表单
+const resetUploadForm = () => {
+  uploadForm.value = {
+    title: '',
+    file: null
+  };
+  if (fileInput.value) {
+    fileInput.value.value = '';
+  }
+};
+
+// 取消上传对话框
+const cancelUpload = () => {
+  showUploadDialog.value = false;
+  resetUploadForm();
+  disconnectWebSocket();
+};
+
+// 删除按钮直接执行删除，不再打开确认框
+const confirmDelete = (id: number) => {
+  articleToDelete.value = id;
+  showDeleteConfirm.value = true;
+};
+
+// 修改删除文章方法，支持自动关闭对话框
+const deleteArticle = async () => {
+  if (!articleToDelete.value) return;
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/article/${articleToDelete.value}`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: getAuthHeader()
+    });
+    
+    if (!response.ok) {
+      throw new Error('删除文章失败');
+    }
+    
+    articles.value = articles.value.filter(article => article.id !== articleToDelete.value);
+    selectedArticles.value = selectedArticles.value.filter(id => id !== articleToDelete.value);
+    
+    showNotification('文章已删除', 'success');
+    // 自动关闭对话框
+    showDeleteConfirm.value = false;
+    articleToDelete.value = null;
+  } catch (error) {
+    console.error('删除文章时出错:', error);
+    showNotification(`删除失败: ${error instanceof Error ? error.message : String(error)}`, 'error');
+  }
+};
+
+// 批量删除功能保留确认框，但删除成功后自动关闭
+const deleteArticles = async () => {
+  if (selectedArticles.value.length === 0) {
+    showNotification('请选择要删除的文章', 'warning');
+    return;
+  }
+  
+  let successCount = 0;
+  let failCount = 0;
+  
+  for (const id of selectedArticles.value) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/article/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: getAuthHeader()
+      });
+      
+      if (response.ok) {
+        successCount++;
+      } else {
+        failCount++;
+      }
+    } catch (error) {
+      console.error(`删除文章 ${id} 时出错:`, error);
+      failCount++;
+    }
+  }
+  
+  await fetchArticles();
+  selectedArticles.value = [];
+  
+  showNotification(`删除完成: ${successCount} 成功, ${failCount} 失败`, successCount > 0 ? 'success' : 'error');
+  // 操作完成后自动关闭确认框
+  showDeleteConfirm.value = false;
 };
 
 // 查看文章
 const viewArticle = (id: number) => {
-  console.log(`查看文章 ID: ${id}`);
-  // 通常会打开新窗口或导航到前台文章页面
+  router.push(`/admin/article-content/${id}`);
 };
 
-// 确认删除
-const confirmDelete = (id: number) => {
-  articleToDelete.value = id;
-  selectedArticles.value = [id];
-  showDeleteConfirm.value = true;
+// 打开文章编辑器
+const openArticleEditor = (id: number) => {
+  router.push(`/admin/article-editor/${id}`);
+};
+
+// 创建新文章
+const createNewArticle = () => {
+  router.push('/admin/article-editor/new');
+};
+
+// 批量操作方法
+const batchPublish = async () => {
+  await updateArticlesStatus('published');
+};
+
+const batchDraft = async () => {
+  await updateArticlesStatus('draft');
+};
+
+const batchArchive = async () => {
+  await updateArticlesStatus('archived');
+};
+
+// 更新文章状态通用方法
+const updateArticlesStatus = async (status: 'published' | 'draft' | 'archived') => {
+  if (selectedArticles.value.length === 0) {
+    showNotification('请选择要操作的文章', 'warning');
+    return;
+  }
+  
+  let successCount = 0;
+  let failCount = 0;
+  
+  for (const id of selectedArticles.value) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/article/${id}/status`, {
+        method: 'PUT',
+        credentials: 'include',  // 添加凭证
+        headers: {
+          ...getAuthHeader(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      });
+      
+      if (response.ok) {
+        successCount++;
+      } else {
+        failCount++;
+      }
+    } catch (error) {
+      console.error(`更新文章 ${id} 状态时出错:`, error);
+      failCount++;
+    }
+  }
+  
+  await fetchArticles();
+  selectedArticles.value = [];
+  
+  showNotification(`状态更新完成: ${successCount} 成功, ${failCount} 失败`, successCount > 0 ? 'success' : 'error');
+};
+
+// 用于取消删除操作
+const cancelDelete = () => {
+  showDeleteConfirm.value = false;
+  articleToDelete.value = null;
 };
 
 // 确认批量删除
@@ -482,190 +1020,273 @@ const confirmBatchDelete = () => {
   showDeleteConfirm.value = true;
 };
 
-// 取消删除
-const cancelDelete = () => {
-  showDeleteConfirm.value = false;
-  articleToDelete.value = null;
-};
-
-// 执行删除
-const deleteArticles = () => {
-  console.log(`删除文章 IDs: ${selectedArticles.value.join(', ')}`);
-  
-  // 模拟删除操作
-  articles.value = articles.value.filter(article => !selectedArticles.value.includes(article.id));
-  
-  // 重置状态
-  showDeleteConfirm.value = false;
-  articleToDelete.value = null;
-  selectedArticles.value = [];
-  
-  // 如果当前页没有数据了，且不是第一页，则返回上一页
-  if (paginatedArticles.value.length === 0 && currentPage.value > 1) {
-    currentPage.value--;
+// 移除文件
+const removeFile = () => {
+  uploadForm.value.file = null;
+  if (fileInput.value) {
+    fileInput.value.value = '';
   }
 };
 
-// 批量操作
-const batchPublish = () => {
-  updateArticlesStatus('published');
-};
-
-const batchDraft = () => {
-  updateArticlesStatus('draft');
-};
-
-const batchArchive = () => {
-  updateArticlesStatus('archived');
-};
-
-// 更新文章状态
-const updateArticlesStatus = (status: 'published' | 'draft' | 'archived') => {
-  articles.value = articles.value.map(article => {
-    if (selectedArticles.value.includes(article.id)) {
-      return { ...article, status };
-    }
-    return article;
-  });
+// 上传文件
+const uploadFile = async () => {
+  if (!uploadForm.value.file) {
+    showNotification('请选择要上传的Markdown文件', 'warning');
+    return;
+  }
   
-  selectedArticles.value = [];
+  if (!uploadForm.value.title.trim()) {
+    showNotification('请输入文章标题', 'warning');
+    return;
+  }
+  
+  try {
+    isUploading.value = true;
+    const file = uploadForm.value.file;
+    const title = uploadForm.value.title.trim();
+    
+    // 确定是否使用WebSocket进度监控
+    const useProgress = file.size > 1024 * 1024; // 大于1MB的文件显示进度
+    
+    if (useProgress && typeof SockJS === 'function' && typeof Stomp === 'object') {
+      await uploadWithProgress(file, title);
+    } else {
+      await uploadWithoutProgress(file, title);
+    }
+  } catch (error) {
+    console.error('上传文件时出错:', error);
+    showNotification(`上传失败: ${error instanceof Error ? error.message : String(error)}`, 'error');
+  } finally {
+    isUploading.value = false;
+  }
 };
 
-// 页面加载
+// 添加显示通知的便捷方法
+const showNotification = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+  notification.value?.addMessage(message, type);
+};
+
+// 切换状态下拉菜单
+const toggleStatusDropdown = (id: number) => {
+  if (activeDropdown.value === id) {
+    activeDropdown.value = null;
+  } else {
+    activeDropdown.value = id;
+  }
+};
+
+// 更新文章状态并收起下拉菜单
+const updateArticleStatus = async (id: number, newStatus: string) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/article/${id}/status`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        ...getAuthHeader(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: newStatus })
+    });
+    
+    if (response.ok) {
+      // 更新本地文章状态
+      const article = articles.value.find(a => a.id === id);
+      if (article) {
+        article.status = newStatus;
+      }
+      showNotification(`文章状态已更新为"${getStatusText(newStatus)}"`, 'success');
+    } else {
+      showNotification('更新文章状态失败', 'error');
+    }
+  } catch (error) {
+    console.error('更新文章状态出错:', error);
+    showNotification('更新文章状态失败', 'error');
+  } finally {
+    // 关闭下拉菜单
+    activeDropdown.value = null;
+  }
+};
+
+// 获取状态样式类名
+const getStatusClass = (status: string): string => {
+  switch (status.toUpperCase()) {
+    case 'PUBLISHED': return 'status-published';
+    case 'DRAFT': return 'status-draft';
+    case 'ARCHIVED': return 'status-archived';
+    default: return '';
+  }
+};
+
+// 点击页面其他区域关闭下拉菜单
+const closeDropdowns = () => {
+  activeDropdown.value = null;
+};
+
+// 切换文章精选状态
+const toggleFeatureStatus = async (id: number, featured: boolean) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/article/${id}/feature`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        ...getAuthHeader(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ isFeatured: featured })
+    });
+    
+    if (response.ok) {
+      // 更新本地文章精选状态
+      const article = articles.value.find(a => a.id === id);
+      if (article) {
+        article.isFeatured = featured;
+      }
+      showNotification(featured ? '文章已设为精选' : '文章已取消精选', 'success');
+    } else {
+      showNotification(featured ? '设置精选失败' : '取消精选失败', 'error');
+    }
+  } catch (error) {
+    console.error('更新文章精选状态出错:', error);
+    showNotification('更新文章精选状态失败', 'error');
+  }
+};
+
+// 获取状态显示文本
+const getStatusText = (status: string): string => {
+  switch (status.toUpperCase()) {
+    case 'PUBLISHED': return '已发布';
+    case 'DRAFT': return '草稿';
+    case 'ARCHIVED': return '已归档';
+    default: return status;
+  }
+};
+
+// 页面加载时获取文章列表
 onMounted(() => {
-  // 模拟加载数据
-  isLoading.value = true;
-  setTimeout(() => {
-    isLoading.value = false;
-  }, 500);
+  fetchArticles();
+  document.addEventListener('click', closeDropdowns);
+});
+
+// 组件销毁前断开WebSocket连接
+onBeforeUnmount(() => {
+  disconnectWebSocket();
+  document.removeEventListener('click', closeDropdowns);
 });
 </script>
 
 <style scoped>
 .article-management {
-  position: relative;
+  min-height: 100vh;
+  /* background: linear-gradient(135deg, #1c92d2, #0761aa); */
+  padding: 20px;
+  color: #333;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
 }
 
 .page-title {
   font-size: 24px;
   font-weight: 600;
-  color: #333;
+  color: white;
   margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .add-button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: #4a90e2;
+  gap: 5px;
+  background-color: #49b1f5;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: 4px;
+  padding: 8px 16px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  font-size: 14px;
+  transition: background-color 0.3s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .add-button:hover {
-  background: #3a7bc8;
+  background-color: #36a0e8;
 }
 
 .filter-container {
+  background-color: white;
+  border-radius: 8px;
+  padding: 15px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
+  justify-content: space-between;
   margin-bottom: 20px;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .search-box {
-  flex: 1;
-  min-width: 300px;
   position: relative;
+  width: 300px;
 }
 
 .search-icon {
   position: absolute;
-  left: 12px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: #666;
+  color: #999;
+  font-size: 16px;
 }
 
 .search-box input {
   width: 100%;
-  padding: 10px 40px 10px 40px;
-  border: 1px solid #e1e5e9;
-  border-radius: 8px;
+  padding: 8px 30px 8px 30px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
   font-size: 14px;
-  background: #f5f7fc;
-  transition: all 0.2s ease;
-}
-
-.search-box input:focus {
-  outline: none;
-  background: #fff;
-  border-color: #4a90e2;
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
 }
 
 .clear-button {
   position: absolute;
-  right: 12px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  background: transparent;
+  background: none;
   border: none;
-  color: #666;
+  color: #999;
   cursor: pointer;
   padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 16px;
 }
 
 .filter-group {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .filter select {
-  padding: 10px 16px;
-  border: 1px solid #e1e5e9;
-  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background-color: white;
   font-size: 14px;
-  background: #f5f7fc;
-  color: #333;
-  cursor: pointer;
-  min-width: 130px;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 30px;
-}
-
-.filter select:focus {
-  outline: none;
-  background-color: #fff;
-  border-color: #4a90e2;
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+  min-width: 120px;
 }
 
 .table-container {
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
   margin-bottom: 20px;
 }
 
@@ -674,166 +1295,121 @@ onMounted(() => {
   border-collapse: collapse;
 }
 
-.data-table th,
-.data-table td {
-  text-align: left;
-  padding: 16px;
-  border-bottom: 1px solid #e1e5e9;
-}
-
 .data-table th {
-  background-color: #f5f7fc;
+  background-color: #f5f5f5;
+  color: #666;
+  text-align: left;
+  padding: 12px 15px;
   font-weight: 600;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.data-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #e8e8e8;
   color: #333;
-  white-space: nowrap;
 }
 
-.data-table tr:last-child td {
-  border-bottom: none;
-}
-
-.data-table tbody tr {
-  transition: background 0.2s ease;
-}
-
-.data-table tbody tr:hover {
-  background-color: #f5f7fc;
+.data-table tr:hover {
+  background-color: #f0f9ff;
 }
 
 .data-table tr.selected {
-  background-color: rgba(74, 144, 226, 0.05);
-}
-
-.data-table tr.selected:hover {
-  background-color: rgba(74, 144, 226, 0.1);
+  background-color: #e6f7ff;
 }
 
 .checkbox-col {
   width: 40px;
-}
-
-.checkbox-col input[type="checkbox"] {
-  cursor: pointer;
+  text-align: center;
 }
 
 .title-col {
-  max-width: 300px;
+  min-width: 250px;
 }
 
 .article-title {
   font-weight: 500;
   margin-bottom: 4px;
-  color: #333;
 }
 
-.article-excerpt {
-  font-size: 13px;
-  color: #666;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.tags-col {
-  min-width: 150px;
-}
-
-.tag-list {
+.article-file-info {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.tag {
-  background: rgba(74, 144, 226, 0.1);
-  color: #4a90e2;
   font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  white-space: nowrap;
-}
-
-.status-badge {
-  display: inline-block;
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
-.status-badge.published {
-  background: rgba(126, 211, 33, 0.1);
-  color: #7ed321;
-}
-
-.status-badge.draft {
-  background: rgba(248, 151, 27, 0.1);
-  color: #f8971b;
-}
-
-.status-badge.archived {
-  background: rgba(153, 153, 153, 0.1);
   color: #999;
 }
 
+.file-path {
+  margin-right: 10px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-size {
+  color: #666;
+}
+
 .actions-col {
-  width: 120px;
+  width: 180px;
 }
 
 .action-buttons {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .action-btn {
-  background: transparent;
+  background: none;
   border: none;
-  color: #666;
-  padding: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
+  color: #999;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.action-btn:hover {
-  background: #f0f5fd;
+  padding: 6px;
+  border-radius: 4px;
+  transition: all 0.3s;
 }
 
 .action-btn.edit:hover {
-  color: #4a90e2;
+  color: #1890ff;
+  background-color: #e6f7ff;
 }
 
 .action-btn.view:hover {
-  color: #7ed321;
+  color: #52c41a;
+  background-color: #f6ffed;
 }
 
 .action-btn.delete:hover {
-  color: #ff6b6b;
+  color: #f5222d;
+  background-color: #fff1f0;
+}
+
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #1890ff;
+  text-decoration: none;
+}
+
+.file-link:hover {
+  text-decoration: underline;
+}
+
+.no-link {
+  color: #999;
+  font-style: italic;
 }
 
 .empty-state {
   text-align: center;
-  padding: 40px !important;
+  padding: 40px 0;
 }
 
 .empty-icon, .loading-icon {
-  font-size: 48px;
-  color: #ccc;
+  font-size: 36px;
+  color: #999;
   margin-bottom: 16px;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 .empty-state p {
@@ -841,21 +1417,38 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.reset-button {
-  background: #4a90e2;
+.upload-button {
+  background-color: #49b1f5;
   color: white;
   border: none;
+  border-radius: 4px;
   padding: 8px 16px;
-  border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.upload-button:hover {
+  background-color: #36a0e8;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .pagination {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 20px;
+  padding: 15px 20px;
 }
 
 .pagination-info {
@@ -869,73 +1462,59 @@ onMounted(() => {
 }
 
 .pagination-button {
-  min-width: 40px;
-  height: 40px;
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid #d9d9d9;
+  background-color: white;
+  color: #666;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #e1e5e9;
-  background: #fff;
-  border-radius: 8px;
-  color: #333;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  border-radius: 4px;
+  transition: all 0.3s;
 }
 
 .pagination-button:hover:not(:disabled) {
-  background: #f0f5fd;
-  border-color: #4a90e2;
-}
-
-.pagination-button.current {
-  background: #4a90e2;
-  color: white;
-  border-color: #4a90e2;
+  color: #49b1f5;
+  border-color: #49b1f5;
 }
 
 .pagination-button:disabled {
-  color: #ccc;
+  color: #d9d9d9;
   cursor: not-allowed;
 }
 
+.pagination-button.current {
+  color: white;
+  background-color: #49b1f5;
+  border-color: #49b1f5;
+  font-weight: 500;
+}
+
 .per-page-selector select {
-  padding: 9px 16px;
-  border: 1px solid #e1e5e9;
-  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background-color: white;
   font-size: 14px;
-  background: #fff;
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 30px;
 }
 
 .batch-actions {
   position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: white;
+  padding: 15px 20px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  background: #fff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  padding: 15px 25px;
-  border-radius: 10px;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
   z-index: 10;
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from { transform: translate(-50%, 100%); opacity: 0; }
-  to { transform: translate(-50%, 0); opacity: 1; }
 }
 
 .selection-info {
-  color: #333;
   font-weight: 500;
 }
 
@@ -947,159 +1526,396 @@ onMounted(() => {
 .batch-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: #f5f7fc;
-  border: none;
-  color: #333;
-  font-size: 14px;
+  gap: 5px;
+  background-color: white;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 6px 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  font-size: 14px;
+  transition: all 0.3s;
 }
 
 .batch-btn:hover {
-  background: #e0e7ff;
-}
-
-.batch-btn.delete {
-  color: #ff6b6b;
+  color: #49b1f5;
+  border-color: #49b1f5;
 }
 
 .batch-btn.delete:hover {
-  background: rgba(255, 107, 107, 0.1);
+  color: #f5222d;
+  border-color: #f5222d;
 }
 
-.confirm-dialog {
+.confirm-dialog, .upload-dialog {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .dialog-content {
-  background: white;
-  width: 90%;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 100%;
   max-width: 500px;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.15);
-  animation: zoomIn 0.2s ease;
 }
 
-@keyframes zoomIn {
-  from { transform: scale(0.9); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+.upload-dialog .dialog-content {
+  max-width: 600px;
 }
 
 .dialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #e1e5e9;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e8e8e8;
 }
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
+  font-weight: 600;
   color: #333;
 }
 
 .close-btn {
-  background: transparent;
+  background: none;
   border: none;
+  font-size: 16px;
   color: #999;
   cursor: pointer;
-  padding: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-.close-btn:hover {
-  background: #f5f7fc;
-  color: #333;
 }
 
 .dialog-body {
-  padding: 30px 20px;
-  text-align: center;
-}
-
-.dialog-body p {
-  margin: 0;
-  color: #333;
+  padding: 24px;
 }
 
 .dialog-footer {
-  padding: 20px;
+  padding: 10px 24px 24px;
   display: flex;
   justify-content: flex-end;
-  gap: 15px;
-  border-top: 1px solid #e1e5e9;
+  gap: 10px;
 }
 
 .cancel-btn, .confirm-btn {
-  padding: 10px 20px;
-  border-radius: 6px;
+  padding: 8px 16px;
+  border-radius: 4px;
   font-size: 14px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .cancel-btn {
-  background: #f5f7fc;
-  border: 1px solid #e1e5e9;
-  color: #333;
-}
-
-.cancel-btn:hover {
-  background: #e0e7ff;
+  background-color: white;
+  border: 1px solid #d9d9d9;
+  color: #666;
 }
 
 .confirm-btn {
-  background: #ff6b6b;
+  background-color: #49b1f5;
   border: none;
   color: white;
 }
 
-.confirm-btn:hover {
-  background: #ff5252;
+.cancel-btn:hover {
+  color: #49b1f5;
+  border-color: #49b1f5;
 }
 
-@media (max-width: 1200px) {
-  .filter-container {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .filter-group {
-    flex-wrap: wrap;
-  }
-  
-  .filter select {
-    width: 100%;
-  }
-  
-  .data-table {
-    display: block;
-    overflow-x: auto;
-  }
+.confirm-btn:hover {
+  background-color: #36a0e8;
+}
+
+.confirm-btn:disabled {
+  background-color: #92d1f8;
+  cursor: not-allowed;
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input[type="text"] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.file-drop-area {
+  border: 2px dashed #d9d9d9;
+  border-radius: 4px;
+  padding: 40px 20px;
+  text-align: center;
+  background-color: #fafafa;
+  transition: all 0.3s;
+}
+
+.file-drop-area.dragging {
+  border-color: #49b1f5;
+  background-color: #e6f7ff;
+}
+
+.file-drop-area.has-file {
+  padding: 20px;
+}
+
+.file-input {
+  display: none;
+}
+
+.drop-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #666;
+}
+
+.upload-icon {
+  font-size: 36px;
+  color: #999;
+}
+
+.browse-btn {
+  background-color: #49b1f5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.file-icon {
+  font-size: 36px;
+  color: #49b1f5;
+}
+
+.file-details {
+  flex: 1;
+  text-align: left;
+}
+
+.file-name {
+  font-weight: 500;
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+.remove-file-btn {
+  background: none;
+  border: none;
+  color: #f5222d;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.remove-file-btn:hover {
+  background-color: #fff1f0;
+}
+
+.progress-container {
+  margin-top: 20px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.progress-status {
+  font-weight: 500;
+}
+
+.progress-bytes {
+  color: #666;
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-inner {
+  height: 100%;
+  background-color: #49b1f5;
+  transition: width 0.3s ease;
+}
+
+.progress-complete {
+  background-color: #52c41a;
+}
+
+.progress-error {
+  background-color: #f5222d;
+}
+
+.progress-error-message {
+  color: #f5222d;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+/* 新增的样式 */
+.featured {
+  background-color: rgba(255, 237, 213, 0.4);
+}
+
+.featured-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: #ffab2b;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.featured-badge .iconify {
+  margin-right: 2px;
+}
+
+.tags-col {
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.article-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: #e6f7ff;
+  color: #1890ff;
+  font-size: 12px;
+}
+
+.no-tags {
+  color: #999;
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* 状态显示相关样式 */
+.status-display {
+  position: relative;
+  cursor: pointer;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 15px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.status-published {
+  background-color: #52c41a;
+  color: white;
+}
+
+.status-draft {
+  background-color: #1890ff;
+  color: white;
+}
+
+.status-archived {
+  background-color: #8c8c8c;
+  color: white;
+}
+
+.status-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 100px;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  margin-top: 5px;
+}
+
+.status-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.status-option:hover {
+  background-color: #f5f5f5;
+}
+
+.status-option.active {
+  font-weight: 500;
+}
+
+.status-option:first-child {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+.status-option:last-child {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+/* 移除旧的状态选择器样式 */
+.status-selector {
+  position: relative;
+  min-width: 90px;
+}
+
+.status-select {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 13px;
+  transition: all 0.3s;
+}
+
+.status-select:hover {
+  border-color: #49b1f5;
 }
 </style> 
