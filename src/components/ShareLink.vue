@@ -72,7 +72,7 @@ const isExternalLink = computed(() => {
 .line {
   width: 100%;
   height: 1px;
-  background-color: #000000;
+  background-color: var(--border-color, #000000);
   margin: 10px 0;
 }
 
@@ -82,11 +82,11 @@ const isExternalLink = computed(() => {
   align-items: center;
   padding: 16px;
   border-radius: 8px;
-  background-color: #ffffff;
+  background-color: var(--background-color, #ffffff);
   text-decoration: none;
-  color: inherit;
+  color: var(--text-color, inherit);
   margin-bottom: 16px;
-  border: 1px solid #000000;
+  border: 1px solid var(--border-color, #000000);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
   position: relative;
@@ -104,10 +104,9 @@ const isExternalLink = computed(() => {
   justify-content: center;
 }
 
-
 .share-link-container:hover {
-  background-color: #39a6ff;
-  color: #ffffff;
+  background-color: var(--primary-color, #39a6ff);
+  color: var(--primary-text-color, #ffffff);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
 }
@@ -120,10 +119,10 @@ const isExternalLink = computed(() => {
   height: 40px;
   min-width: 40px;
   border-radius: 50%;
-  background-color: white;
+  background-color: var(--card-background, white);
   margin-right: 14px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-  color: #333;
+  color: var(--text-color, #333);
 }
 
 .share-link-content {
@@ -135,7 +134,7 @@ const isExternalLink = computed(() => {
   font-size: 16px;
   font-weight: 500;
   margin-bottom: 4px;
-  /* color: #333; */
+  color: var(--heading-color, inherit);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -143,7 +142,7 @@ const isExternalLink = computed(() => {
 
 .share-link-description {
   font-size: 13px;
-  /* color: #777; */
+  color: var(--secondary-text-color, inherit);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -154,7 +153,7 @@ const isExternalLink = computed(() => {
   align-items: center;
   justify-content: center;
   margin-left: 8px;
-  /* color: #999; */
+  color: var(--icon-color, inherit);
   font-size: 18px;
 }
 

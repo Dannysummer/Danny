@@ -173,7 +173,7 @@
 
       <!-- 底部信息 -->
       <div class="share-footer">
-        <p>感谢您的关注与支持！</p>
+        <p class="quote">感谢您的关注与支持！</p>
         <p class="quote">「分享创造快乐，连接成就价值」</p>
       </div>
     </div>
@@ -437,8 +437,8 @@ const shareToWeibo = () => {
 }
 
 .description {
-  font-size: 16px;
-  color: #555;
+  font-size: 36px;
+  color: #ffffff;
   line-height: 1.6;
   max-width: 800px;
   margin: 0 auto;
@@ -460,7 +460,7 @@ const shareToWeibo = () => {
   font-size: 22px;
   font-weight: 600;
   margin-bottom: 25px;
-  color: #333;
+  color: #ffffff;
   position: relative;
   padding-left: 16px;
 }
@@ -518,7 +518,7 @@ const shareToWeibo = () => {
 
 .quote {
   font-style: italic;
-  color: #888;
+  color: #dadada;
   margin-top: 8px;
 }
 

@@ -161,7 +161,7 @@
           
           <!-- 空状态 -->
           <tr v-if="paginatedArticles.length === 0">
-            <td colspan="6" class="empty-state">
+            <td colspan="8" class="empty-state">
               <div v-if="isLoading">
                 <Icon icon="mdi:loading" class="loading-icon spin" />
                 <p>加载中...</p>
@@ -1407,9 +1407,9 @@ onBeforeUnmount(() => {
 }
 
 .empty-icon, .loading-icon {
-  font-size: 36px;
+  font-size: 128px;
   color: #999;
-  margin-bottom: 16px;
+  margin: 20px auto;
 }
 
 .empty-state p {
