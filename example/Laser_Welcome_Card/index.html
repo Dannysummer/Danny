@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- 设置字符编码为UTF-8 -->
+    <meta charset="UTF-8" />
+    <!-- 设置视口宽度为设备宽度，初始缩放比例为1.0 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 引入样式表 -->
+    <link rel="stylesheet" href="style.css" />
+    <title>Document</title>
+  </head>
+  <body>
+    <!-- 
+      核心是card__laser的设置
+      镭射图片可以是任意的循环图片，自行搜索下载
+      -->
+    <!-- 容器 -->
+    <div class="container">
+      <!-- 卡片容器，初始状态为激活状态 -->
+      <div class="card-wrapper active">
+        <!-- 卡片，初始状态为激活状态 -->
+        <section id="card" class="active">
+          <!-- 内部容器 -->
+          <div class="inside active">
+            <!-- 激光效果 -->
+            <div class="card__laser active"></div>
+            <!-- 头像内容 -->
+            <div class="card__content avatar__content">
+              <!-- 头像图片 -->
+              <img class="avatar" src="./iamges/Avatar.png" alt="" />
+            </div>
+            <!-- 其他内容 -->
+            <div class="card__content">
+              <!-- 详细信息 -->
+              <div class="card__details">
+                <!-- 标题 -->
+                <h3>_技术小白_</h3>
+                <!-- 描述 -->
+                <p>Technical Novice</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <!-- 引入脚本 -->
+    <script src="main.js"></script>
+  </body>
+</html>

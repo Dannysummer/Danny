@@ -22,10 +22,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { timelineData } from '../data/articles'
 import { useRouter } from 'vue-router'
+import { getRelatedArticles, type Article } from '../services/article'
 
 const router = useRouter()
 
@@ -37,30 +37,36 @@ const props = defineProps<{
   }
 }>()
 
-// 计算文本相似度（简单实现）
-const calculateSimilarity = (text1: string, text2: string) => {
-  const set1 = new Set(text1.toLowerCase().split(''))
-  const set2 = new Set(text2.toLowerCase().split(''))
-  const intersection = new Set([...set1].filter(x => set2.has(x)))
-  const union = new Set([...set1, ...set2])
-  return intersection.size / union.size
+const relatedArticles = ref<Article[]>([])
+const isLoading = ref(true)
+
+// 加载相关文章
+const loadRelatedArticles = async () => {
+  if (!props.currentArticle?.id) return
+  
+  try {
+    isLoading.value = true
+    const articles = await getRelatedArticles(props.currentArticle.id, 4)
+    relatedArticles.value = articles
+    console.log('相关文章加载成功:', articles.length)
+  } catch (error) {
+    console.error('加载相关文章失败:', error)
+    relatedArticles.value = []
+  } finally {
+    isLoading.value = false
+  }
 }
 
-// 获取相关文章
-const relatedArticles = computed(() => {
-  const allArticles = timelineData.flatMap(year => year.articles)
-  
-  return allArticles
-    .filter(article => article.id !== props.currentArticle.id)
-    .map(article => ({
-      ...article,
-      similarity: calculateSimilarity(
-        `${props.currentArticle.title} ${props.currentArticle.description || ''}`,
-        `${article.title} ${article.description || ''}`
-      )
-    }))
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, 4)
+// 当当前文章变化时重新加载相关文章
+watch(() => props.currentArticle?.id, (newId) => {
+  if (newId) {
+    loadRelatedArticles()
+  }
+}, { immediate: true })
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadRelatedArticles()
 })
 
 const navigateToArticle = (article: any) => {

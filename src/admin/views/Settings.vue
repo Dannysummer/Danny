@@ -252,6 +252,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, createApp, h } from 'vue'
+import { config } from '../../config/index'
 
 // 添加自定义消息组件
 const createMessage = (content, type = 'success', duration = 3000) => {
@@ -700,7 +701,7 @@ const uploadViaServer = (file) => {
   
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', 'http://localhost:8088/api/image/upload', true)
+    xhr.open('POST', `${config.api.apiUrl}/image/upload`, true)
     xhr.withCredentials = true
     // 添加Referer请求头，模拟生产环境
     xhr.setRequestHeader('Referer', 'https://www.dannysummer.asia')
@@ -792,7 +793,7 @@ const uploadViaDirect = async (file) => {
 const getToken = () => {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    xhr.open('GET', 'http://localhost:8088/api/image/token', true)
+    xhr.open('GET', `${config.api.apiUrl}/image/token`, true)
     xhr.withCredentials = true
     xhr.setRequestHeader('Content-Type', 'application/json')
     // 添加Referer请求头，模拟生产环境
@@ -961,7 +962,7 @@ const uploadToS3 = (file, token, uploadUrl, path, bucket) => {
 const updateUserAvatar = (avatarUrl) => {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', 'http://localhost:8088/api/user/update-avatar', true)
+    xhr.open('POST', `${config.api.apiUrl}/user/update-avatar`, true)
     xhr.withCredentials = true
     xhr.setRequestHeader('Content-Type', 'application/json')
     // 添加Referer请求头，模拟生产环境

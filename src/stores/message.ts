@@ -33,7 +33,9 @@ export const useMessageStore = defineStore('message', () => {
       closable: options?.closable ?? true
     }
     
+    console.log('添加消息到store:', message)
     messages.value.push(message)
+    console.log('当前消息数组:', messages.value)
     
     // 自动关闭
     if (message.duration > 0) {

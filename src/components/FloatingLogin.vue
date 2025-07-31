@@ -3,7 +3,7 @@
        :class="{ 'dragging': isDragging, 'expanded': showMenu }"
        :style="position"
        @mousedown.stop="startDrag"
-       @touchstart.stop="startDrag">
+       @touchstart.stop.passive="startDrag">
     <div class="login-container" @click="handleContainerClick">
       <!-- 未展开状态 -->
       <div v-if="!showMenu" class="user-header">
@@ -68,6 +68,7 @@ import { Icon } from '@iconify/vue'
 import { useUserStore } from '../stores/user'
 import { useRouter } from 'vue-router'
 import CustomAlert from './CustomAlert.vue'
+import { config } from '../config/index'
 
 // 为自定义事件创建类型定义
 interface LoginStateEventDetail {
@@ -216,7 +217,7 @@ const handleStorageChange = (event: StorageEvent) => {
 const refreshToken = async () => {
   try {
     console.log('FloatingLogin: 正在刷新 token')
-    const response = await fetch('http://localhost:8088/api/auth/refresh-token', {
+    const response = await fetch(`${config.api.apiUrl}/auth/refresh-token`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -236,9 +237,16 @@ const refreshToken = async () => {
         expirationDate.setDate(expirationDate.getDate() + 7) // 7天有效期
         document.cookie = `token=${data.token}; expires=${expirationDate.toUTCString()}; path=/`
       }
+    } else if (response.status === 404) {
+      console.warn('FloatingLogin: refresh-token API 端点不存在，跳过token刷新')
+      // 404 表示后端还没有实现这个功能，静默忽略
+      return
+    } else {
+      console.warn('FloatingLogin: token 刷新失败:', response.status, response.statusText)
     }
   } catch (error) {
-    console.error('FloatingLogin: 刷新 token 失败:', error)
+    console.warn('FloatingLogin: 刷新 token 失败:', error)
+    // 网络错误或其他错误时，不影响正常使用
   }
 }
 
@@ -370,7 +378,7 @@ const checkTokenValidity = async () => {
       return;
     }
     
-    const response = await fetch('http://localhost:8088/api/auth/check-token', {
+    const response = await fetch(`${config.api.apiUrl}/auth/check-token`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -408,7 +416,7 @@ const showTokenExpiredMessage = () => {
 const handleLogout = async (silent: boolean = false) => {
   try {
     // 直接调用fetch而不保存未使用的响应
-    await fetch('http://localhost:8088/api/auth/logout', {
+    await fetch(`${config.api.apiUrl}/auth/logout`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -467,7 +475,7 @@ const clearLoginState = (silent: boolean = true) => {
 // 新增函数：从服务器获取用户信息
 const fetchUserInfo = async () => {
   try {
-    const response = await fetch('http://localhost:8088/api/user/profile', {
+    const response = await fetch(`${config.api.apiUrl}/user/profile`, {
       method: 'GET',
       credentials: 'include',
       headers: {

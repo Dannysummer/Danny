@@ -21,6 +21,24 @@ const frontendRoutes = [
     }
   },
   {
+    path: '/navigation',
+    name: 'Navigation',
+    component: () => import('../views/Navigation.vue'),
+    meta: {
+      title: '站点导航',
+      group: 'navigation'
+    }
+  },
+  {
+    path: '/designs',
+    name: 'Designs',
+    component: () => import('../views/Designs.vue'),
+    meta: {
+      title: '设计作品集',
+      group: 'about'
+    }
+  },
+  {
     path: '/articles',
     name: 'ArticleArchiving',
     component: ArticleArchiving,

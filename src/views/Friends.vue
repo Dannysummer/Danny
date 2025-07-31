@@ -146,6 +146,7 @@ import { Icon } from '@iconify/vue'
 import { categoryNames, type FriendLink } from '../data/friends'
 import HexoLetterhead from '../components/HexoLetterhead.vue'
 import { useThemeStore } from '../stores/theme'  // 导入主题store
+import { config } from '../config/index'
 
 const themeStore = useThemeStore()
 
@@ -258,7 +259,7 @@ const transitionStyle = computed(() => ({
 // 直接从API获取友链数据
 const fetchFriendLinks = async () => {
   try {
-    const response = await fetch('http://localhost:8088/api/friend-links', {
+    const response = await fetch(`${config.api.apiUrl}/friend-links`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -342,7 +343,7 @@ watch(currentCategory, async (newCategory) => {
   error.value = null;
   
   try {
-    const response = await fetch(`http://localhost:8088/api/friend-links/category/${newCategory}`, {
+    const response = await fetch(`${config.api.apiUrl}/friend-links/category/${newCategory}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'

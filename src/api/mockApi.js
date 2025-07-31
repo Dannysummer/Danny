@@ -190,6 +190,92 @@ app.post('/api/friend-links/:id/reject', (req, res) => {
   return response
 })
 
+// 申请友链
+app.post('/api/friend-links/apply', (req, res) => {
+  const { name, description, url, avatar, cover, email, category } = req.body
+  
+  // 验证必填字段
+  if (!name || !description || !url || !avatar || !cover || !email) {
+    const response = {
+      success: false,
+      message: '请填写所有必填字段'
+    }
+    console.log(`[模拟API] POST /api/friend-links/apply 响应:`, response)
+    return response
+  }
+  
+  // 验证字段长度
+  if (name.length > 20 || description.length > 20) {
+    const response = {
+      success: false,
+      message: '名称和简介不能超过20个字符'
+    }
+    console.log(`[模拟API] POST /api/friend-links/apply 响应:`, response)
+    return response
+  }
+  
+  // 验证URL格式
+  const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/
+  if (!urlPattern.test(url)) {
+    const response = {
+      success: false,
+      message: '请填写正确的网址格式'
+    }
+    console.log(`[模拟API] POST /api/friend-links/apply 响应:`, response)
+    return response
+  }
+  
+  // 验证图片URL格式
+  if (!avatar.startsWith('http') || !cover.startsWith('http')) {
+    const response = {
+      success: false,
+      message: '头像和封面必须是有效的HTTP链接'
+    }
+    console.log(`[模拟API] POST /api/friend-links/apply 响应:`, response)
+    return response
+  }
+  
+  // 验证邮箱格式
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailPattern.test(email)) {
+    const response = {
+      success: false,
+      message: '请填写正确的邮箱格式'
+    }
+    console.log(`[模拟API] POST /api/friend-links/apply 响应:`, response)
+    return response
+  }
+  
+  // 生成新的友链ID
+  const newId = Math.max(...db.friendLinks.map(link => link.id), 0) + 1
+  
+  // 创建新的友链申请
+  const newFriendLink = {
+    id: newId,
+    name,
+    description,
+    url,
+    avatar,
+    cover,
+    email,
+    category: category || 'friend',
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  }
+  
+  // 添加到数据库
+  db.friendLinks.push(newFriendLink)
+  
+  const response = {
+    success: true,
+    message: '友链申请已提交，请等待审核',
+    data: newFriendLink
+  }
+  
+  console.log(`[模拟API] POST /api/friend-links/apply 响应:`, response)
+  return response
+})
+
 // 导出模拟API
 export default {
   // 提供给前端调用的函数
@@ -215,6 +301,11 @@ export default {
   
   rejectFriendLink: async (id, reason) => {
     const response = app.post(`/api/friend-links/${id}/reject`, { body: { reason } })
+    return response
+  },
+  
+  applyFriendLink: async (formData) => {
+    const response = app.post('/api/friend-links/apply', { body: formData })
     return response
   }
 } 

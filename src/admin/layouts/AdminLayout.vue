@@ -83,6 +83,7 @@ import { ref, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useUserStore } from '@/stores/user'
+import { config } from '../../config/index'
 
 const router = useRouter()
 const route = useRoute()
@@ -284,7 +285,7 @@ const handleLogout = () => {
 // 获取未审核友链数量
 const fetchPendingFriendLinksCount = async () => {
   try {
-    const response = await fetch('http://localhost:8088/api/friend-links/pending', {
+    const response = await fetch(`${config.api.apiUrl}/friend-links/pending`, {
       credentials: 'include'
     })
     const data = await response.json()

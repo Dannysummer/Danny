@@ -379,12 +379,12 @@ const shareToWeibo = () => {
 /* 顶部横幅 */
 .share-banner {
   position: relative;
-  background-image: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
-  height: 220px;
+  /* background-image: linear-gradient(120deg, #0d3d21 0%, #c2e9fb 100%); */
+  height: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 40px;
+  margin-bottom: 80px;
   overflow: hidden;
   z-index: 1;
 }
@@ -413,9 +413,9 @@ const shareToWeibo = () => {
   position: absolute;
   width: 100%;
   height: 100%;
-  background-image: url('/images/banner-pattern.png'); /* 可选的图案纹理 */
+  background-image: url('/public/background/transition-banner-bg.jpg'); /* 可选的图案纹理*/
   background-size: cover;
-  opacity: 0.1;
+  opacity: 0.8;
   z-index: 1;
 }
 
@@ -423,7 +423,7 @@ const shareToWeibo = () => {
 .share-container {
   position: relative;
   max-width: 1200px;
-  margin: 0 auto 60px;
+  margin: 0 auto 0px;
   padding: 40px;
   background-color: var(--background-color);
   border-radius: 12px;
@@ -510,7 +510,7 @@ const shareToWeibo = () => {
 /* 底部信息 */
 .share-footer {
   text-align: center;
-  margin-top: 40px;
+  margin: 40px;
   padding-top: 20px;
   border-top: 1px solid #eee;
   color: #666;

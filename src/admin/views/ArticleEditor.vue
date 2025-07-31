@@ -9,13 +9,17 @@
         <h1 class="editor-title">{{ isNewArticle ? '创建文章' : '编辑文章' }}</h1>
       </div>
       <div class="right-actions">
-        <button class="save-draft-button" @click="saveDraft">
+        <button class="save-draft-button" @click="saveDraft" :disabled="isSaving" title="快捷键: Ctrl+S">
           <Icon icon="mdi:content-save-outline" />
-          <span>保存草稿</span>
+          <span>{{ isSaving ? '保存中...' : '保存草稿' }}</span>
         </button>
-        <button class="publish-button" @click="publish">
+        <button class="full-update-button" @click="fullUpdateArticle" :disabled="isSaving" title="完整更新所有字段 (快捷键: Ctrl+Shift+U)">
+          <Icon icon="mdi:update" />
+          <span>{{ isSaving ? '更新中...' : '完整更新' }}</span>
+        </button>
+        <button class="publish-button" @click="publish" :disabled="isSaving" title="快捷键: Ctrl+Shift+P">
           <Icon icon="mdi:publish" />
-          <span>发布</span>
+          <span>{{ isSaving ? '发布中...' : '发布' }}</span>
         </button>
       </div>
     </div>
@@ -173,33 +177,90 @@
           <h3>文章设置</h3>
           
           <div class="form-group">
-            <label>状态</label>
-            <select v-model="article.status">
-              <option value="draft">草稿</option>
-              <option value="published">已发布</option>
-              <option value="archived">已归档</option>
-            </select>
-          </div>
-          
-          <div class="form-group">
             <label>封面图</label>
             <div class="cover-image-uploader">
               <div v-if="article.coverImage" class="cover-preview">
                 <img :src="article.coverImage" alt="封面预览" />
-                <button class="remove-cover" @click="removeCover">
-                  <Icon icon="mdi:close" />
-                </button>
+                <div class="cover-overlay">
+                  <button class="change-cover-btn" @click="selectCoverImage">
+                    <Icon icon="mdi:camera" />
+                    <span>更换</span>
+                  </button>
+                  <button class="remove-cover-btn" @click="removeCover">
+                    <Icon icon="mdi:delete" />
+                    <span>删除</span>
+                  </button>
+                </div>
               </div>
-              <button v-else class="upload-cover-btn">
-                <Icon icon="mdi:upload" />
+              <div v-else class="cover-upload-area" 
+                   @click="selectCoverImage"
+                   @dragover.prevent="handleCoverDragOver"
+                   @dragleave.prevent="handleCoverDragLeave"
+                   @drop.prevent="handleCoverDrop"
+                   :class="{ 'dragging': coverDragging }">
+                <Icon icon="mdi:image-plus" class="upload-icon" />
                 <span>上传封面图</span>
-              </button>
+                <small>支持拖拽或点击上传</small>
+              </div>
+              
+              <!-- 上传进度 -->
+              <div v-if="coverUploadProgress.show" class="upload-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill" :style="{ width: coverUploadProgress.percentage + '%' }"></div>
+                </div>
+                <span class="progress-text">{{ Math.round(coverUploadProgress.percentage) }}%</span>
+              </div>
+              
+              <!-- 隐藏的文件输入 -->
+              <input 
+                type="file" 
+                ref="coverFileInput" 
+                @change="handleCoverFileSelect" 
+                accept="image/*" 
+                style="display: none"
+              />
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>状态</label>
+            <div class="status-selector">
+              <label class="status-option" :class="{ active: article.status === 'draft' }">
+                <input type="radio" v-model="article.status" value="draft" />
+                <div class="status-indicator draft"></div>
+                <div class="status-info">
+                  <span class="status-name">草稿</span>
+                  <small>仅自己可见</small>
+                </div>
+              </label>
+              <label class="status-option" :class="{ active: article.status === 'published' }">
+                <input type="radio" v-model="article.status" value="published" />
+                <div class="status-indicator published"></div>
+                <div class="status-info">
+                  <span class="status-name">已发布</span>
+                  <small>公开可见</small>
+                </div>
+              </label>
+              <label class="status-option" :class="{ active: article.status === 'archived' }">
+                <input type="radio" v-model="article.status" value="archived" />
+                <div class="status-indicator archived"></div>
+                <div class="status-info">
+                  <span class="status-name">已归档</span>
+                  <small>隐藏状态</small>
+                </div>
+              </label>
             </div>
           </div>
           
           <div class="form-group">
             <label>发布时间</label>
-            <input type="datetime-local" v-model="article.publishDate" />
+            <div class="publish-date-group">
+              <input type="datetime-local" v-model="article.publishDate" />
+              <button type="button" class="set-now-btn" @click="setCurrentTime">
+                <Icon icon="mdi:clock" />
+                <span>现在</span>
+              </button>
+            </div>
           </div>
           
           <div class="form-group">
@@ -260,6 +321,7 @@ import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
 import DOMPurify from 'dompurify';
+import { config } from '../../config/index'
 // import { getArticleById, createArticle, updateArticle, uploadImage, type Article } from '../../services/article';
 
 const router = useRouter();
@@ -295,7 +357,7 @@ const article = ref<{
   categoryId: number;
   category: string;
   tags: string[];
-  status: 'draft' | 'published';
+  status: 'draft' | 'published' | 'archived';
   coverImage: string;
   cover: string;
   publishDate: string;
@@ -342,6 +404,14 @@ const pageBreaks = ref<number[]>([]); // 保存分页断点的位置（字符索
 
 // 保存状态
 const isSaving = ref(false);
+
+// 封面图上传相关
+const coverFileInput = ref<HTMLInputElement | null>(null);
+const coverDragging = ref(false);
+const coverUploadProgress = ref({
+  show: false,
+  percentage: 0
+});
 
 // 显示消息提示
 const showMessage = (message: string, type: 'success' | 'error' = 'success') => {
@@ -464,6 +534,130 @@ const removeCover = () => {
   article.value.coverImage = '';
 };
 
+// 选择封面图
+const selectCoverImage = () => {
+  coverFileInput.value?.click();
+};
+
+// 处理封面图文件选择
+const handleCoverFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    const file = target.files[0];
+    uploadCoverImage(file);
+  }
+};
+
+// 处理封面图拖拽
+const handleCoverDragOver = (event: DragEvent) => {
+  event.preventDefault();
+  coverDragging.value = true;
+};
+
+const handleCoverDragLeave = (event: DragEvent) => {
+  event.preventDefault();
+  coverDragging.value = false;
+};
+
+const handleCoverDrop = (event: DragEvent) => {
+  event.preventDefault();
+  coverDragging.value = false;
+  
+  if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+    const file = event.dataTransfer.files[0];
+    if (file.type.startsWith('image/')) {
+      uploadCoverImage(file);
+    } else {
+      showMessage('请选择图片文件', 'error');
+    }
+  }
+};
+
+// 上传封面图
+const uploadCoverImage = async (file: File) => {
+  if (!file.type.startsWith('image/')) {
+    showMessage('请选择图片文件', 'error');
+    return;
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    showMessage('图片大小不能超过10MB', 'error');
+    return;
+  }
+
+  try {
+    coverUploadProgress.value = { show: true, percentage: 0 };
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'cover');
+    
+    const API_BASE_URL = config.api.apiUrl;
+    
+    // 尝试使用进度监控端点
+    const response = await fetch(`${API_BASE_URL}/image/upload-with-progress`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Referer': 'https://www.dannysummer.asia'
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      // 如果进度监控端点失败，尝试使用普通上传端点
+      console.log('进度监控端点失败，尝试普通上传端点');
+      const fallbackResponse = await fetch(`${API_BASE_URL}/images/upload`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Referer': 'https://www.dannysummer.asia'
+        },
+        body: formData
+      });
+
+      if (!fallbackResponse.ok) {
+        throw new Error('上传失败');
+      }
+
+      const fallbackResult = await fallbackResponse.json();
+      if (fallbackResult.success || fallbackResult.code === 200) {
+        // 处理批量上传的返回结果
+        const uploadedImages = fallbackResult.data;
+        if (uploadedImages && uploadedImages.length > 0) {
+          article.value.coverImage = uploadedImages[0].url;
+          showMessage('封面图上传成功');
+        } else {
+          throw new Error('上传结果为空');
+        }
+      } else {
+        throw new Error(fallbackResult.message || '上传失败');
+      }
+    } else {
+      const result = await response.json();
+      if (result.success || result.code === 200) {
+        article.value.coverImage = result.data.url;
+        showMessage('封面图上传成功');
+      } else {
+        throw new Error(result.message || '上传失败');
+      }
+    }
+  } catch (error) {
+    console.error('上传封面图失败:', error);
+    showMessage('上传失败: ' + (error instanceof Error ? error.message : String(error)), 'error');
+  } finally {
+    coverUploadProgress.value.show = false;
+    if (coverFileInput.value) {
+      coverFileInput.value.value = '';
+    }
+  }
+};
+
+// 设置当前时间
+const setCurrentTime = () => {
+  article.value.publishDate = new Date().toISOString().slice(0, 16);
+};
+
 // 返回上一页
 const goBack = () => {
   router.push('/admin/articles');
@@ -491,18 +685,164 @@ const syncScroll = (e: Event) => {
 
 // 保存草稿
 const saveDraft = async () => {
-  article.value.status = 'draft';
-  await saveArticle();
+  if (!article.value.title.trim()) {
+    showMessage('请输入文章标题', 'error');
+    return;
+  }
+
+  try {
+    isSaving.value = true;
+    const API_BASE_URL = config.api.apiUrl;
+    
+    // 准备文章数据
+    const articleData: any = {
+      title: article.value.title,
+      content: article.value.content,
+      excerpt: article.value.excerpt || '',
+      categoryId: article.value.categoryId,
+      tags: article.value.tags,
+      coverImage: article.value.coverImage,
+      slug: article.value.slug,
+      allowComments: article.value.allowComments,
+      sticky: article.value.sticky,
+      status: 'DRAFT', // 明确设置为草稿状态
+      publishDate: article.value.publishDate
+    };
+
+    // 如果是编辑现有文章，添加ID
+    if (article.value.id && article.value.id !== 'new') {
+      articleData.id = article.value.id;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/article`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(articleData)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: '保存草稿失败' }));
+      throw new Error(errorData.message || '保存草稿失败');
+    }
+
+    const result = await response.json();
+    
+    if (result.success || result.code === 200) {
+      showMessage('草稿保存成功');
+      if (result.data && result.data.id) {
+        article.value.id = result.data.id;
+        article.value.status = 'draft';
+        // 更新路由参数，避免重复创建
+        if (route.params.id === 'new') {
+          router.replace(`/admin/article-editor/${result.data.id}`);
+        }
+      }
+    } else {
+      throw new Error(result.message || '保存草稿失败');
+    }
+  } catch (error) {
+    console.error('保存草稿失败:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    showMessage(`保存草稿失败: ${errorMessage}`, 'error');
+  } finally {
+    isSaving.value = false;
+  }
 };
 
 // 发布文章
 const publish = async () => {
-  article.value.status = 'published';
-  await saveArticle();
+  // 验证必填字段
+  if (!article.value.title.trim()) {
+    showMessage('请输入文章标题', 'error');
+    return;
+  }
+  
+  if (!article.value.content.trim()) {
+    showMessage('请输入文章内容', 'error');
+    return;
+  }
+
+  // 如果是新文章，先保存草稿
+  if (!article.value.id || article.value.id === 'new') {
+    await saveDraft();
+  }
+
+  if (!article.value.id || article.value.id === 'new') {
+    showMessage('请先保存草稿后再发布', 'error');
+    return;
+  }
+
+  try {
+    isSaving.value = true;
+    const API_BASE_URL = config.api.apiUrl;
+    
+    // 准备完整的文章数据 - 强制更新所有字段
+    const completeArticleData = {
+      title: article.value.title,
+      content: article.value.content,
+      excerpt: article.value.excerpt || '',
+      categoryId: article.value.categoryId,
+      tags: article.value.tags, // 支持数组格式
+      coverImage: article.value.coverImage,
+      slug: article.value.slug,
+      allowComments: article.value.allowComments,
+      sticky: article.value.sticky,
+      publishDate: article.value.publishDate,
+      // 新增字段
+      description: article.value.excerpt || '',
+      category: getCategoryName(article.value.categoryId),
+      cover: article.value.coverImage,
+      license: 'CC_BY_NC_SA_4_0', // 默认协议
+      isFeatured: article.value.sticky || false,
+      // 分页信息
+      pageBreaks: enablePagination.value ? pageBreaks.value : []
+    };
+    
+    // 使用新的发布接口 - 强制更新所有字段
+    const response = await fetch(`${API_BASE_URL}/article/${article.value.id}/publish`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(completeArticleData)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: '发布文章失败' }));
+      throw new Error(errorData.message || '发布文章失败');
+    }
+
+    const result = await response.json();
+    
+    if (result.success || result.code === 200) {
+      showMessage('文章发布成功 - 已完整更新所有字段');
+      article.value.status = 'published';
+      // 更新本地数据
+      if (result.data) {
+        Object.assign(article.value, {
+          ...result.data,
+          status: 'published',
+          updateTime: new Date().toISOString()
+        });
+      }
+    } else {
+      throw new Error(result.message || '发布文章失败');
+    }
+  } catch (error) {
+    console.error('发布文章失败:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    showMessage(`发布文章失败: ${errorMessage}`, 'error');
+  } finally {
+    isSaving.value = false;
+  }
 };
 
-// 保存文章
-const saveArticle = async (status?: 'published' | 'draft') => {
+// 通用保存文章函数 (支持完整更新和部分更新)
+const saveArticle = async (status?: 'PUBLISHED' | 'DRAFT', fullUpdate: boolean = false) => {
   if (!article.value.title.trim()) {
     showMessage('请输入文章标题', 'error');
     return;
@@ -511,50 +851,86 @@ const saveArticle = async (status?: 'published' | 'draft') => {
   try {
     isSaving.value = true;
     
-    // 如果传入了状态参数，则更新文章状态
+    const API_BASE_URL = config.api.apiUrl;
+    
+    // 准备文章数据
+    const articleData: any = {
+      title: article.value.title,
+      content: article.value.content,
+      excerpt: article.value.excerpt || '',
+      categoryId: article.value.categoryId,
+      tags: article.value.tags,
+      coverImage: article.value.coverImage,
+      slug: article.value.slug,
+      allowComments: article.value.allowComments,
+      sticky: article.value.sticky,
+      publishDate: article.value.publishDate,
+      // 新增字段
+      description: article.value.excerpt || '',
+      category: getCategoryName(article.value.categoryId),
+      cover: article.value.coverImage,
+      license: 'CC_BY_NC_SA_4_0',
+      isFeatured: article.value.sticky || false
+    };
+    
+    // 设置状态
     if (status) {
-      article.value.status = status;
-    }
-    
-    // 保存分页断点
-    if (enablePagination.value) {
-      article.value.pageBreaks = pageBreaks.value;
+      articleData.status = status;
     } else {
-      article.value.pageBreaks = [];
+      articleData.status = article.value.status === 'published' ? 'PUBLISHED' : 'DRAFT';
     }
     
-    const API_BASE_URL = 'http://localhost:8088/api';
-    const method = article.value.id && article.value.id !== 'new' ? 'PUT' : 'POST';
-    const endpoint = article.value.id && article.value.id !== 'new' 
-      ? `${API_BASE_URL}/articleDraftSave/${article.value.id}` 
-      : `${API_BASE_URL}/articleDraftSave`;
+    // 添加分页信息
+    if (enablePagination.value) {
+      articleData.pageBreaks = pageBreaks.value;
+    }
+    
+    const isNewArticle = !article.value.id || article.value.id === 'new';
+    const method = isNewArticle ? 'POST' : 'PUT';
+    
+    let endpoint = '';
+    if (isNewArticle) {
+      endpoint = `${API_BASE_URL}/article`;
+    } else {
+      // 使用优化的PUT接口，支持完整更新参数
+      endpoint = `${API_BASE_URL}/article/${article.value.id}?fullUpdate=${fullUpdate}`;
+    }
+    
+    // 如果是编辑现有文章，添加ID
+    if (!isNewArticle) {
+      articleData.id = article.value.id;
+    }
     
     const response = await fetch(endpoint, {
       method: method,
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Referer': 'https://www.dannysummer.asia'
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(article.value)
+      body: JSON.stringify(articleData)
     });
     
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({ message: '保存失败' }));
       throw new Error(errorData.message || '保存失败');
     }
     
     const result = await response.json();
-    if (result.success && result.data) {
+    if (result.success || result.code === 200) {
       // 更新文章ID（如果是新创建的文章）
-      if (!article.value.id || article.value.id === 'new') {
+      if (isNewArticle && result.data && result.data.id) {
         article.value.id = result.data.id;
         // 更新URL以反映文章ID
         router.replace(`/admin/article-editor/${result.data.id}`);
       }
       
-      showMessage('文章保存成功');
+      // 更新本地状态
+      if (status) {
+        article.value.status = status.toLowerCase() as 'draft' | 'published';
+      }
+      
+      const updateMode = fullUpdate ? '完整更新' : '部分更新';
+      showMessage(`文章保存成功 (${updateMode})`);
     } else {
       throw new Error(result.message || '保存失败');
     }
@@ -566,7 +942,18 @@ const saveArticle = async (status?: 'published' | 'draft') => {
   }
 };
 
-// 修改loadArticle方法以使用API代理接口
+// 新增：完整更新文章的方法
+const fullUpdateArticle = async () => {
+  await saveArticle(undefined, true); // 完整更新模式
+};
+
+// 新增：获取分类名称的辅助函数
+const getCategoryName = (categoryId: number): string => {
+  const category = categories.value.find(c => c.id === categoryId);
+  return category ? category.name : '其他';
+};
+
+// 加载文章数据
 const loadArticle = async () => {
   if (!articleId.value || articleId.value === 'new') {
     // 创建新文章，不需要加载数据
@@ -575,65 +962,60 @@ const loadArticle = async () => {
 
   try {
     isLoading.value = true;
-    const API_BASE_URL = 'http://localhost:8088/api';
+    const API_BASE_URL = config.api.apiUrl;
     
-    // 获取文章基本信息
-    const response = await fetch(`${API_BASE_URL}/article/${articleId.value}`, {
+    // 获取文章基本信息 - 使用新的详情接口
+    const response = await fetch(`${API_BASE_URL}/article/details/${articleId.value}`, {
       credentials: 'include',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Referer': 'https://www.dannysummer.asia'
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       }
     });
     
     if (!response.ok) {
-      throw new Error('获取文章失败');
+      const errorData = await response.json().catch(() => ({ message: '获取文章失败' }));
+      throw new Error(errorData.message || '获取文章失败');
     }
     
     const result = await response.json();
-    if (result.success && result.data) {
-      // 更新文章数据
+    if (result.success || result.code === 200) {
+      const articleData = result.data;
+      
+      // 更新文章数据 - 处理后端返回的数据格式
       article.value = {
         ...article.value,
-        ...result.data,
-        publishDate: new Date(result.data.createdAt || result.data.createTime || new Date())
+        ...articleData,
+        id: articleData.id,
+        title: articleData.title || '',
+        content: articleData.content || '',
+        excerpt: articleData.description || articleData.excerpt || '', // 后端返回description字段
+        categoryId: articleData.categoryId || 1,
+        category: articleData.category || '',
+        tags: typeof articleData.tags === 'string' 
+          ? articleData.tags.split(',').filter((tag: string) => tag.trim())
+          : (articleData.tags || []), // 处理逗号分隔的字符串
+        status: articleData.status === 'PUBLISHED' ? 'published' : 'draft',
+        coverImage: articleData.cover || articleData.coverImage || '', // 后端返回cover字段
+        cover: articleData.cover || articleData.coverImage || '',
+        publishDate: new Date(articleData.createdAt || articleData.publishDate || articleData.createTime || new Date())
           .toISOString().slice(0, 16), // 格式化为yyyy-MM-ddThh:mm
-        tags: result.data.tags || [],
+        slug: articleData.slug || '',
+        allowComments: articleData.allowComments !== false,
+        sticky: articleData.sticky === true,
+        views: articleData.views || 0,
+        comments: articleData.comments || 0,
+        createTime: articleData.createdAt || articleData.createTime || new Date().toISOString(), // 处理时间字段
+        updateTime: articleData.updatedAt || articleData.updateTime || new Date().toISOString() // 处理时间字段
       };
       
       // 如果有分页断点数据，则开启分页
-      if (result.data.pageBreaks && result.data.pageBreaks.length > 0) {
-        pageBreaks.value = result.data.pageBreaks;
+      if (articleData.pageBreaks && articleData.pageBreaks.length > 0) {
+        pageBreaks.value = articleData.pageBreaks;
         enablePagination.value = true;
       }
-
-      // 使用代理接口获取文章内容
-      try {
-        const contentResponse = await fetch(`${API_BASE_URL}/article/content/${articleId.value}`, {
-          credentials: 'include',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Referer': 'https://www.dannysummer.asia',
-            'Accept': 'text/plain; charset=utf-8'
-          }
-        });
-        
-        if (contentResponse.ok) {
-          // 确保以UTF-8方式处理响应
-          const blob = await contentResponse.blob();
-          const reader = new FileReader();
-          reader.onload = () => {
-            article.value.content = reader.result as string;
-          };
-          reader.readAsText(blob, 'utf-8');
-        } else {
-          console.error('加载文章内容失败:', contentResponse.statusText);
-          showMessage('加载文章内容失败', 'error');
-        }
-      } catch (error) {
-        console.error('加载文章内容失败:', error);
-        showMessage('加载文章内容失败', 'error');
-      }
+      
+      console.log('文章加载成功:', article.value);
     } else {
       throw new Error(result.message || '获取文章失败');
     }
@@ -647,11 +1029,43 @@ const loadArticle = async () => {
 
 onMounted(() => {
   loadArticle();
+  
   nextTick(() => {
     autoResize();
     
+    // 添加键盘快捷键
+    const handleKeydown = (e: KeyboardEvent) => {
+      // Ctrl+S 保存草稿
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        saveDraft();
+      }
+      // Ctrl+Shift+P 发布文章
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        publish();
+      }
+      // Ctrl+Shift+U 完整更新
+      if (e.ctrlKey && e.shiftKey && e.key === 'U') {
+        e.preventDefault();
+        fullUpdateArticle();
+      }
+      // Ctrl+B 加粗
+      if (e.ctrlKey && e.key === 'b' && contentEditor.value === document.activeElement) {
+        e.preventDefault();
+        insertFormat('**', '**');
+      }
+      // Ctrl+I 斜体
+      if (e.ctrlKey && e.key === 'i' && contentEditor.value === document.activeElement) {
+        e.preventDefault();
+        insertFormat('*', '*');
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeydown);
+    
     // 添加代码复制按钮功能
-    document.addEventListener('click', (e) => {
+    const handleCodeCopy = (e: Event) => {
       const target = e.target as HTMLElement;
       const copyButton = target.closest('.copy-button');
       if (copyButton) {
@@ -685,7 +1099,15 @@ onMounted(() => {
           }
         }
       }
-    });
+    };
+    
+    document.addEventListener('click', handleCodeCopy);
+    
+    // 组件卸载时清理事件监听器
+    return () => {
+      document.removeEventListener('keydown', handleKeydown);
+      document.removeEventListener('click', handleCodeCopy);
+    };
   });
 });
 </script>
@@ -705,6 +1127,7 @@ onMounted(() => {
   padding: 20px;
   background-color: #f9fafc;
   border-radius: 15px;
+  overflow: hidden;
 }
 
 .editor-header {
@@ -723,6 +1146,7 @@ onMounted(() => {
 
 .back-button,
 .save-draft-button,
+.full-update-button,
 .publish-button {
   display: flex;
   align-items: center;
@@ -755,6 +1179,21 @@ onMounted(() => {
   background-color: #eaf2fd;
 }
 
+.full-update-button {
+  background-color: #f8f9fa;
+  color: #28a745;
+  border: 1px solid #28a745;
+}
+
+.full-update-button:hover {
+  background-color: #e8f5e8;
+}
+
+.full-update-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .publish-button {
   background-color: #4a90e2;
   color: white;
@@ -775,6 +1214,7 @@ onMounted(() => {
   display: flex;
   gap: 20px;
   height: calc(100vh - 140px);
+  overflow: hidden;
 }
 
 .editor-main {
@@ -782,6 +1222,7 @@ onMounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  border-radius: 10px;
 }
 
 .editor-sidebar {
@@ -917,6 +1358,7 @@ onMounted(() => {
   background-color: white;
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  min-height: 0;
 }
 
 .editor-tabs {
@@ -924,6 +1366,8 @@ onMounted(() => {
   gap: 5px;
   padding: 15px 20px 0;
   border-bottom: 1px solid #eee;
+  background-color: white;
+  border-radius: 10px 10px 0 0;
 }
 
 .tab-button {
@@ -939,6 +1383,7 @@ onMounted(() => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  margin-bottom: -1px;
 }
 
 .tab-button:hover {
@@ -955,19 +1400,32 @@ onMounted(() => {
   display: flex;
   flex: 1;
   overflow: hidden;
+  border-radius: 0 0 10px 10px;
+  background-color: white;
 }
 
 .editor-container.edit .edit-area {
   width: 100%;
+  border-radius: 0 0 10px 10px;
 }
 
 .editor-container.preview .preview-area {
   width: 100%;
+  border-radius: 0 0 10px 10px;
 }
 
 .editor-container.split .edit-area,
 .editor-container.split .preview-area {
   width: 50%;
+  background-color: white;
+}
+
+.editor-container.split .edit-area {
+  border-radius: 0 0 0 10px;
+}
+
+.editor-container.split .preview-area {
+  border-radius: 0 0 10px 0;
 }
 
 .edit-area,
@@ -975,11 +1433,13 @@ onMounted(() => {
   height: 100%;
   overflow-y: auto;
   transition: width 0.3s ease;
+  background-color: transparent;
 }
 
 .edit-area.hidden,
 .preview-area.hidden {
   display: none;
+  overflow: hidden;
 }
 
 .edit-area {
@@ -1035,11 +1495,18 @@ onMounted(() => {
   resize: none;
   outline: none;
   min-height: 300px;
+  background-color: white;
 }
 
 .preview-area {
   padding: 20px;
   overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.editor-container.preview .preview-area {
+  border-radius: 0 0 10px 10px;
 }
 
 /* Markdown 样式与文章内容预览保持一致 */
@@ -1049,6 +1516,9 @@ onMounted(() => {
   word-wrap: break-word;
   overflow-wrap: break-word;
   font-family: 'ZhuZiAWan', sans-serif;
+  height: 100%;
+  overflow-y: auto;
+  padding-bottom: 20px;
 
   strong {
     font-weight: 900;
@@ -1536,6 +2006,249 @@ onMounted(() => {
   }
 }
 
+/* 封面图上传样式 */
+.cover-image-uploader {
+  position: relative;
+}
+
+.cover-preview {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8f9fa;
+}
+
+.cover-preview img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  display: block;
+}
+
+.cover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.cover-preview:hover .cover-overlay {
+  opacity: 1;
+}
+
+.change-cover-btn,
+.remove-cover-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.change-cover-btn {
+  background: rgba(74, 144, 226, 0.9);
+  color: white;
+}
+
+.change-cover-btn:hover {
+  background: rgba(74, 144, 226, 1);
+}
+
+.remove-cover-btn {
+  background: rgba(245, 34, 45, 0.9);
+  color: white;
+}
+
+.remove-cover-btn:hover {
+  background: rgba(245, 34, 45, 1);
+}
+
+.cover-upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  padding: 20px;
+}
+
+.cover-upload-area:hover {
+  border-color: #4a90e2;
+  background: #f0f6ff;
+}
+
+.cover-upload-area.dragging {
+  border-color: #4a90e2;
+  background: #e6f4ff;
+  transform: scale(1.02);
+}
+
+.cover-upload-area .upload-icon {
+  font-size: 24px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+.cover-upload-area span {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.cover-upload-area small {
+  font-size: 12px;
+  color: #999;
+}
+
+.upload-progress {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4a90e2, #40a9ff);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #666;
+  min-width: 35px;
+}
+
+/* 状态选择器样式 */
+.status-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #fff;
+}
+
+.status-option:hover {
+  border-color: #4a90e2;
+  background: #f8fbff;
+}
+
+.status-option.active {
+  border-color: #4a90e2;
+  background: #f0f6ff;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
+.status-option input[type="radio"] {
+  display: none;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator.draft {
+  background: #faad14;
+}
+
+.status-indicator.published {
+  background: #52c41a;
+}
+
+.status-indicator.archived {
+  background: #8c8c8c;
+}
+
+.status-info {
+  flex: 1;
+}
+
+.status-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.status-info small {
+  font-size: 12px;
+  color: #999;
+}
+
+/* 发布时间选择器样式 */
+.publish-date-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.publish-date-group input[type="datetime-local"] {
+  flex: 1;
+}
+
+.set-now-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  color: #666;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.set-now-btn:hover {
+  border-color: #4a90e2;
+  color: #4a90e2;
+  background: #f8fbff;
+}
+
 /* 暗色主题适配 */
 :root[class='dark-theme'] .article-editor {
   background-color: #1e1e1e;
@@ -1653,6 +2366,80 @@ onMounted(() => {
   table tr:nth-child(even) {
     background-color: rgba(255, 255, 255, 0.03);
   }
+}
+
+/* 暗色主题 - 封面图上传样式 */
+:root[class='dark-theme'] .cover-upload-area {
+  background: #333;
+  border-color: #555;
+  color: #ccc;
+}
+
+:root[class='dark-theme'] .cover-upload-area:hover {
+  border-color: #4a90e2;
+  background: #2a3b50;
+}
+
+:root[class='dark-theme'] .cover-upload-area.dragging {
+  background: #1e3a5f;
+}
+
+:root[class='dark-theme'] .cover-upload-area .upload-icon {
+  color: #777;
+}
+
+:root[class='dark-theme'] .cover-upload-area span {
+  color: #ccc;
+}
+
+:root[class='dark-theme'] .cover-upload-area small {
+  color: #888;
+}
+
+:root[class='dark-theme'] .progress-bar {
+  background: #444;
+}
+
+:root[class='dark-theme'] .progress-text {
+  color: #ccc;
+}
+
+/* 暗色主题 - 状态选择器样式 */
+:root[class='dark-theme'] .status-option {
+  background: #333;
+  border-color: #555;
+}
+
+:root[class='dark-theme'] .status-option:hover {
+  border-color: #4a90e2;
+  background: #2a3b50;
+}
+
+:root[class='dark-theme'] .status-option.active {
+  border-color: #4a90e2;
+  background: #1e3a5f;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+:root[class='dark-theme'] .status-name {
+  color: #e0e0e0;
+}
+
+:root[class='dark-theme'] .status-info small {
+  color: #aaa;
+}
+
+/* 暗色主题 - 发布时间选择器样式 */
+:root[class='dark-theme'] .set-now-btn {
+  background: #333;
+  border-color: #555;
+  color: #ccc;
+}
+
+:root[class='dark-theme'] .set-now-btn:hover {
+  border-color: #4a90e2;
+  color: #4a90e2;
+  background: #2a3b50;
 }
 
 @media (max-width: 1200px) {

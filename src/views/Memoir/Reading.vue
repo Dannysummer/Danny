@@ -558,7 +558,7 @@ const showAllBooks = ref(false)
 
 <style scoped>
 .reading-container {
-  font-family: "Noto Serif SC", "Noto Serif TC", "Source Han Serif SC", "Source Han Serif TC", serif;
+  font-family: var(--font-mixed-primary);
   background-color: #94B6DB;
   background-size: cover;
   background-position: center;

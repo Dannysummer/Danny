@@ -10,7 +10,7 @@
       <LoadingPage v-if="!$route.meta.hideLoading" />
       <!-- <ParticlesBackground /> -->
       <!-- 顶部导航栏 -->
-      <nav class="nav" :class="{ 'nav-hidden': isNavHidden }" @mouseenter="handleNavMouseEnter" @mouseleave="handleNavMouseLeave">
+      <nav class="nav" :class="{ 'nav-scrolled': isScrolled }" @mouseenter="handleNavMouseEnter" @mouseleave="handleNavMouseLeave">
         <div class="nav-content">
           <div class="logo">
             <Logo />
@@ -23,44 +23,71 @@
 
           <!-- 修改导航链接容器 -->
           <div class="nav-links" :class="{ 'mobile-menu-open': isMobileMenuOpen }">
-            <div class="nav-slider" :style="sliderStyle"></div>
-            <div class="nav-line" :style="navLineStyle"></div>
-            <template v-for="(link, index) in navLinks" :key="index">
-              <!-- 普通链接 -->
-              <router-link 
-                v-if="!link.children"
-                :to="link.path" 
-                class="nav-link"
-                @click="handleLinkClick($event.currentTarget)"
-              >
-                <Icon :icon="link.icon" class="nav-icon" />
-                {{ link.text }}
-              </router-link>
+            <div class="nav-content-wrapper">
+              <transition name="fade-up">
+                <div v-if="!isScrolled" class="nav-items-container">
+                  <template v-for="(link, index) in navLinks" :key="index">
+                    <!-- 普通链接 -->
+                    <router-link 
+                      v-if="!link.children"
+                      :to="link.path" 
+                      class="nav-link"
+                      @click="handleLinkClick($event.currentTarget)"
+                    >
+                      <Icon :icon="link.icon" class="nav-icon" />
+                      {{ link.text }}
+                    </router-link>
+                    
+                    <!-- 带下拉菜单的链接 -->
+                    <div 
+                      v-else 
+                      class="nav-dropdown"
+                    >
+                      <div class="nav-link dropdown-trigger">
+                        <Icon :icon="link.icon" class="nav-icon" />
+                        {{ link.text }}
+                        <Icon icon="material-symbols:keyboard-arrow-down" class="dropdown-icon" />
+                      </div>
+                      <div class="dropdown-menu">
+                        <router-link 
+                          v-for="child in link.children"
+                          :key="child.path"
+                          :to="child.path"
+                          class="dropdown-item"
+                          @click="handleLinkClick($event.currentTarget)"
+                        >
+                          <Icon :icon="child.icon" class="nav-icon" />
+                          {{ child.text }}
+                        </router-link>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </transition>
               
-              <!-- 带下拉菜单的链接 -->
-              <div 
-                v-else 
-                class="nav-dropdown"
-              >
-                <div class="nav-link">
-                  <Icon :icon="link.icon" class="nav-icon" />
-                  {{ link.text }}
-                  <Icon icon="material-symbols:keyboard-arrow-down" class="dropdown-icon" />
+              <transition name="fade-down">
+                <div v-if="isScrolled" class="blog-title" @click="scrollToTop">
+                  Danny's Blog
+                  <span class="tooltip">点击变回导航栏</span>
                 </div>
-                <div class="dropdown-menu">
-                  <router-link 
-                    v-for="child in link.children"
-                    :key="child.path"
-                    :to="child.path"
-                    class="dropdown-item"
-                    @click="handleLinkClick($event.currentTarget)"
-                  >
-                    <Icon :icon="child.icon" class="nav-icon" />
-                    {{ child.text }}
-                  </router-link>
-                </div>
-              </div>
-            </template>
+              </transition>
+            </div>
+          </div>
+          
+          <!-- 右侧功能图标 -->
+          <div class="nav-actions">
+            <button class="action-btn" aria-label="开往随机友链" alt="开往随机友链" title="开往随机友链" @click="goToRandomFriendLink">
+              <FontAwesomeIcon :icon="faBus" />
+            </button>
+            <button class="action-btn" aria-label="友链接力" alt="友链接力·十年之约" title="友链接力·十年之约" @click="goToFriendChain">
+              <FontAwesomeIcon :icon="faLink" />
+            </button>
+            <button class="action-btn" aria-label="站内随机文章" alt="站内随机文章" title="站内随机文章" @click="goToRandomArticle">
+              <FontAwesomeIcon :icon="faShuffle" />
+            </button>
+            <button class="action-btn" aria-label="搜索" alt="搜索站内文章" title="搜索站内文章">
+              <FontAwesomeIcon :icon="faMagnifyingGlass " />
+            </button>
           </div>
         </div>
       </nav>
@@ -141,6 +168,9 @@
 
       <!-- 在App组件的模板底部添加MessageNotification组件 -->
       <MessageNotification />
+      
+      <!-- 全局右键菜单 -->
+      <ContextMenu />
     </template>
   </div>
 </template>
@@ -159,15 +189,26 @@ import LoadingPage from './components/LoadingPage.vue'
 // import UserAvatar from './components/UserAvatar.vue'
 import { useRoute, useRouter } from 'vue-router'
 import FloatingLogin from './components/FloatingLogin.vue'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { faHouse, faBus, faLink, faShuffle, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons'
 // 注释掉不存在的组件导入
 // import CommentPanel from './components/CommentPanel.vue'
 // import Toast from './components/Toast.vue'
 // import Footer from './components/Footer.vue'
 import MessageNotification from '@/components/MessageNotification.vue'
+import ContextMenu from '@/components/ContextMenu.vue'
+import { useContextMenuStore } from '@/stores/contextMenu'
+import { config } from './config/index'
 
 const themeStore = useThemeStore()
 const musicStore = useMusicStore()
 const userStore = useUserStore()
+const contextMenuStore = useContextMenuStore()
+
+// 添加Font Awesome库初始化
+library.add(faHouse, faBus, faLink, faShuffle, faMagnifyingGlass)
+
 const commentStore = ref({
   isCommentPanelOpen: false,
   currentPostId: 0,
@@ -179,6 +220,7 @@ const scrollPercentage = ref(0)
 const route = useRoute()
 const router = useRouter()
 
+const isScrolled = ref(false)
 const isNavHidden = ref(false)
 const isMouseNearTop = ref(false)
 const isMouseOverNav = ref(false)
@@ -187,10 +229,13 @@ let lastScrollTop = 0
 const handleScroll = () => {
   const currentScrollTop = window.scrollY
   
+  // 设置滚动状态（但不隐藏导航栏）
+  isScrolled.value = currentScrollTop > 100;
+  
   // 只在鼠标不在导航区域时处理滚动隐藏
-  if (!isMouseNearTop.value && !isMouseOverNav.value && currentScrollTop > 50) {
-    isNavHidden.value = currentScrollTop > lastScrollTop
-  }
+  // if (!isMouseNearTop.value && !isMouseOverNav.value && currentScrollTop > 50) {
+  //   isNavHidden.value = currentScrollTop > lastScrollTop
+  // }
   
   // 计算滚动百分比
   const scrollHeight = document.documentElement.scrollHeight - window.innerHeight
@@ -352,6 +397,11 @@ const toggleDark = useToggle(isDark)
 // 修改主题切换方法
 const handleThemeToggle = () => {
   toggleDark()
+  
+  // 触发主题变化事件，确保所有组件能够响应主题变化
+  document.dispatchEvent(new CustomEvent('themeChange', { 
+    detail: { isDark: isDark.value }
+  }))
 }
 
 // 修改点击特效处理函数
@@ -395,6 +445,12 @@ onMounted(() => {
   
   // 添加点击事件监听
   window.addEventListener('click', createClickEffect)
+  
+  // 初始化右键菜单
+  setupContextMenuItems()
+  
+  // 初始化主题监听
+  contextMenuStore.initThemeWatcher()
 })
 
 onUnmounted(() => {
@@ -420,6 +476,211 @@ watch(() => route.path, (newPath) => {
 const isAdminRoute = computed(() => {
   return route.path.startsWith('/admin')
 })
+
+// 设置页面特定的右键菜单项
+const setupContextMenuItems = () => {
+  // 为每个页面路由添加特定菜单项
+  // 例如：博客首页的专有菜单
+  contextMenuStore.registerPageMenuItems('blogHome', [
+    {
+      id: 'latest-articles',
+      label: '最新文章',
+      icon: 'mdi:file-document-multiple',
+      action: () => router.push('/articles'),
+      divider: true
+    },
+    {
+      id: 'search-blog',
+      label: '搜索',
+      icon: 'mdi:magnify',
+      action: () => {
+        // 可以触发搜索框的显示
+        // TODO: 实现搜索触发逻辑
+      }
+    }
+  ])
+  
+  // 为导航页面添加菜单项
+  contextMenuStore.registerPageMenuItems('navigation', [
+    {
+      id: 'all-projects',
+      label: '查看所有项目',
+      icon: 'mdi:view-grid',
+      action: () => {
+        // 切换到"全部"分类
+        const el = document.querySelector('.category-btn[data-category="all"]') as HTMLElement
+        if (el) el.click()
+      },
+      divider: true
+    },
+    {
+      id: 'filter-web',
+      label: '筛选网站项目',
+      icon: 'mdi:web',
+      action: () => {
+        // 切换到"网站项目"分类
+        const el = document.querySelector('.category-btn[data-category="web"]') as HTMLElement
+        if (el) el.click()
+      }
+    },
+    {
+      id: 'filter-tools',
+      label: '筛选工具应用',
+      icon: 'mdi:tools',
+      action: () => {
+        // 切换到"工具应用"分类
+        const el = document.querySelector('.category-btn[data-category="tool"]') as HTMLElement
+        if (el) el.click()
+      }
+    }
+  ])
+  
+  // 为个人资料页添加菜单项
+  contextMenuStore.registerPageMenuItems('profile', [
+    {
+      id: 'edit-profile',
+      label: '编辑资料',
+      icon: 'mdi:account-edit',
+      action: () => {
+        // 触发编辑个人资料
+        // TODO: 实现编辑资料逻辑
+      },
+      divider: true
+    },
+    {
+      id: 'view-messages',
+      label: '查看消息',
+      icon: 'mdi:message',
+      action: () => router.push('/message')
+    }
+  ])
+  
+  // 为文章页添加菜单项
+  contextMenuStore.registerPageMenuItems('article', [
+    {
+      id: 'save-article',
+      label: '收藏文章',
+      icon: 'mdi:bookmark',
+      action: () => {
+        // 收藏文章
+        // TODO: 实现收藏文章逻辑
+      },
+      divider: true
+    },
+    {
+      id: 'share-article',
+      label: '分享文章',
+      icon: 'mdi:share',
+      action: () => {
+        // 分享文章
+        if (navigator.share) {
+          navigator.share({
+            title: document.title,
+            url: window.location.href
+          })
+        } else {
+          navigator.clipboard.writeText(window.location.href)
+          // TODO: 添加成功提示
+        }
+      }
+    }
+  ])
+  
+  // 为起始页添加菜单项
+  contextMenuStore.registerPageMenuItems('startPage', [
+    {
+      id: 'settings',
+      label: '页面设置',
+      icon: 'mdi:cog',
+      action: () => {
+        // 打开设置面板
+        // TODO: 实现设置面板显示逻辑
+      },
+      divider: true
+    },
+    {
+      id: 'change-wallpaper',
+      label: '更换壁纸',
+      icon: 'mdi:image',
+      action: () => {
+        // 更换壁纸
+        // TODO: 实现更换壁纸逻辑
+      }
+    }
+  ])
+}
+
+// 监听路由变化，更新右键菜单上下文
+watch(() => route.name, (routeName) => {
+  // 构建路由名称到上下文的映射
+  const contextMap: Record<string, string> = {
+    'home': 'blogHome',
+    'Profile': 'profile',
+    'article': 'article',
+    'Start': 'startPage',
+    'Navigation': 'navigation'
+    // 可以添加更多路由名称到上下文的映射
+  }
+  
+  // 设置当前上下文
+  if (routeName !== null && routeName !== undefined) {
+    const routeNameStr = String(routeName);
+    contextMenuStore.currentContext = contextMap[routeNameStr] || '';
+  } else {
+    contextMenuStore.currentContext = '';
+  }
+}, { immediate: true })
+
+// 添加导航栏功能图标的点击处理函数
+const goToRandomFriendLink = () => {
+  // 随机友链跳转
+  fetch(`${config.api.apiUrl}/friend-links/random`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success && data.data.url) {
+        const url = data.data.url.startsWith('http') ? data.data.url : `https://${data.data.url}`
+        window.open(url, '_blank', 'noopener noreferrer')
+      } else {
+        console.error('无法获取随机友链')
+      }
+    })
+    .catch(error => {
+      console.error('获取随机友链失败:', error)
+      // 备用方案：跳转到友链页面
+      router.push('/friends')
+    })
+}
+
+const goToFriendChain = () => {
+  // 友链接力，可以跳转到一个固定的友链接力站点
+  window.open('https://www.travellings.cn/go.html', '_blank', 'noopener noreferrer')
+}
+
+const goToRandomArticle = () => {
+  // 随机文章跳转
+  fetch(`${config.api.apiUrl}/articles/random`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success && data.data.id) {
+        router.push(`/article/${data.data.id}`)
+      } else {
+        console.error('无法获取随机文章')
+      }
+    })
+    .catch(error => {
+      console.error('获取随机文章失败:', error)
+      // 备用方案：跳转到文章列表页面
+      router.push('/articles')
+    })
+}
+
+// 添加滚动到顶部的方法
+const scrollToTop = () => {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  })
+}
 </script>
 
 <style>
@@ -577,11 +838,9 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 60px;
-  background: rgba(var(--bg-primary-rgb), 0.6);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(var(--text-primary-rgb), 0.1);
-  transition: transform 0.3s ease;
+  height: 70px!important;
+  background: #000000;
+  transition: all 0.3s ease;
   z-index: 10000;
 }
 
@@ -589,221 +848,219 @@ body {
   transform: translateY(-100%);
 }
 
+.nav-scrolled {
+  background: rgba(0, 0, 0, 0.9);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
 .nav-content {
-  max-width: 100%!important;
-  margin: 0;
+  max-width: 100%;
   height: 100%;
   display: flex;
-  justify-content: flex-end;
   align-items: center;
-  padding: 0 20px 0 0;
+  padding: 0 20px;
+  position: relative;
 }
 
 .logo {
+  position: absolute;
+  left: 20px;
   display: flex;
   align-items: center;
-  margin-right: auto;
-  padding-left: 20px;
   height: 100%;
 }
 
 .nav-links {
+  margin: 0 auto;
   display: flex;
-  margin-left: auto;
   gap: 20px;
-  position: relative;
-  padding: 10px 0;
-}
-
-/* 添加下划线轨道 */
-.nav-links::after {
-  content: '';
-  position: absolute;
-  bottom: 8px;
-  left: 0;
+  align-items: center;
+  height: 100%;
+  justify-content: center;
   width: 100%;
-  height: 4px;
-  background-color: #e0e0e0;
-}
-
-/* 修改原下划线的 z-index，确保在轨道上层 */
-.nav-line {
-  position: absolute;
-  bottom: 8px;
-  left: 0;
-  height: 4px;
-  background-color: #87CEEB;
-  transition: all 0.7s ease;
-  z-index: 1;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: var(--text-primary);
+  color: #ffffff;
   text-decoration: none;
-  font-size: 1rem;
+  font-size: 24px!important;
   transition: all 0.3s ease;
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: 0 15px;
   position: relative;
-}
-
-/* 导航链接悬停效果 */
-.nav-link:hover {
-  color: #87CEEB;
-  background: rgba(135, 206, 235, 0.1);
-}
-
-.nav-link:hover .nav-icon {
-  transform: scale(1.2);
-  color: #87CEEB;
-}
-
-/* 暗色主题适配 */
-.dark-theme .nav-link {
-  color: #fff;
-}
-
-.dark-theme .nav-link:hover {
-  background: rgba(135, 206, 235, 0.15);
-}
-
-/* 活动链接样式 */
-.nav-link.router-link-active {
-  color: #87CEEB;
-  background: rgba(135, 206, 235, 0.1);
-}
-
-.nav-link.router-link-active .nav-icon {
-  color: #87CEEB;
-}
-
-/* 添加活动链接样式 */
-.nav-link.router-link-active {
-  color: #000000;
-}
-
-/* 暗色主题下的活动链接样式 */
-.dark-theme .nav-link.router-link-active {
-  color: #ffffff;
-}
-
-.nav-link:hover {
-  color: #87CEEB;
-  transform: scale(1.2);
-  text-shadow: 0 0 10px #87CEEB;
-}
-
-/* 暗色主题下的发光效果增强 */
-.dark-theme .nav-link:hover {
-  color: #87CEEB;
-  transform: scale(1.05);
-  text-shadow: 0 0 15px #87CEEB, 
-              0 0 25px #87CEEB;
-}
-
-/* 暗色主题样式 */
-.dark-theme .nav {
-  background: rgba(0, 0, 0, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark-theme .logo a,
-.dark-theme .nav-link {
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-/* 暗色主题样式调整 */
-.dark-theme .nav-line {
-  background-color: #87CEEB;
-}
-
-/* 暗色主题下轨道颜色调整 */
-.dark-theme .nav-links::after {
-  background-color: #333333;
-}
-
-/* 确保内容不被导航栏遮挡 */
-.app {
-  padding-top: 0;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 添加滑块样式 */
-.nav-slider {
-  position: absolute;
-  bottom: 8px;
-  left: 0;
   height: 100%;
-  background-color: rgba(135, 206, 235, 0.15);
+  gap: 8px;
+}
+
+.nav-icon {
+  font-size: 22px;
+}
+
+.nav-link:hover {
+  color: #87CEEB;
+}
+
+.nav-link.router-link-active {
+  color: #87CEEB;
+}
+
+/* 下拉菜单样式 */
+.nav-dropdown {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.dropdown-trigger {
+  cursor: pointer;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.dropdown-menu {
+  position: absolute!important;
+  /* top: 100%!important; */
+  left: 50%!important;
+  transform: translateX(-50%)!important;
+  background: #1a1a1a;
   border-radius: 4px;
-  transition: all 0.7s ease;
-  z-index: 0;
+  padding: 12px 0;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 10001;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+  transform-origin: top center;
+  transform: translateX(-50%) translateY(10px);
 }
 
-/* 暗色主题下的滑块样式 */
-.dark-theme .nav-slider {
-  background-color: rgba(135, 206, 235, 0.2);
-  box-shadow: 0 0 10px rgba(135, 206, 235, 0.1);
+.nav-dropdown:hover .dropdown-menu {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
-.dark-theme .nav-link.router-link-active {
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
   color: #ffffff;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-size: 16px;
 }
 
-/* 添加移动端适配 */
+.dropdown-item:hover {
+  background: rgba(135, 206, 235, 0.1);
+  color: #87CEEB;
+}
+
+/* 右侧功能图标区域 */
+.nav-actions {
+  position: absolute;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 24px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn:hover {
+  color: #87CEEB;
+}
+
+.action-btn::after {
+  content: '';
+  position: absolute;
+  background: #87CEEB;
+  bottom: 0;
+  width: 0;
+  height: 3px;
+  /* transform:translateX(50%); */
+  transition: width 0.3s ease;
+  border-radius: 10px;
+}
+
+.action-btn:hover::after {
+  width: 15%;
+}
+
+/* 移动端适配 */
 @media (max-width: 768px) {
-  .nav-content {
-    padding: 0 15px;
-  }
-
-  .logo a {
-    font-size: 1.2rem; /* 减小 logo 字体大小 */
-  }
-
-  .nav-links {
-    gap: 10px; /* 减小链接间距 */
-  }
-
-  .nav-link {
-    font-size: 0.9rem; /* 减小链接字体大小 */
-    padding: 5px 8px; /* 减小内边距 */
-  }
-
-  /* 隐藏图标，只显示文字 */
-  .nav-icon {
+  .nav-actions {
     display: none;
   }
-
-  /* 调整下划线和滑块位置 */
-  .nav-line,
-  .nav-links::after {
-    bottom: 6px; /* 微调下划线位置 */
+  
+  .mobile-menu-btn {
+    display: block;
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 8px;
+    margin-left: auto;
   }
-
-  /* 禁用悬停放大效果，避免布局混乱 */
-  .nav-link:hover {
-    transform: none;
-  }
-}
-
-/* 更小屏幕的适配 */
-@media (max-width: 480px) {
+  
   .nav-links {
-    gap: 5px; /* 进一步减小间距 */
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    background: #1a1a1a;
+    padding: 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+    transform: translateY(-100%);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-
-  .nav-link {
-    padding: 5px 6px; /* 进一步减小内边距 */
+  
+  .nav-links.mobile-menu-open {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
   }
-
-  .logo a {
-    font-size: 1.1rem; /* 进一步减小 logo 大小 */
+  
+  .nav-link, 
+  .nav-dropdown,
+  .nav-dropdown .nav-link {
+    height: auto;
+    width: 100%;
+  }
+  
+  .dropdown-menu {
+    position: static;
+    background: none;
+    box-shadow: none;
+    padding: 0 0 0 20px;
+    margin-top: 10px;
+    width: 100%;
+    visibility: visible;
+    opacity: 1;
+    display: none;
+  }
+  
+  .nav-dropdown:hover .dropdown-menu {
+    display: block;
   }
 }
 
@@ -1581,12 +1838,29 @@ router-view {
   font-display: swap;
 }
 
+/* 添加字体声明 */
+@font-face {
+  font-family: 'zhuzi';
+  src: url('@/assets/fonts/chinese/筑紫a丸粗.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Alibaba';
+  src: url('@/assets/fonts/chinese/Alibaba-PuHuiTi-Heavy.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* 修改全局样式，应用字体 */
 html, 
 body,
 #app,
 .app {
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', 'Yozai', sans-serif;
   /* ... existing properties ... */
 }
 
@@ -1601,7 +1875,7 @@ textarea,
 .logo a,
 .theme-toggle,
 .floating-player {
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
 }
 
 /* 修改点击特效样式 */
@@ -1680,6 +1954,8 @@ textarea,
   padding: 8px 12px;
   border-radius: 4px;
   position: relative;
+  animation: fadeIn 1s ease;
+  /* animation: fadeOut 1s ease; */
 }
 
 /* 导航链接悬停效果 */
@@ -1784,6 +2060,217 @@ textarea,
 .dark-theme .scroll-indicator {
   background-color: rgba(135, 206, 235, 0.8);
   box-shadow: 0 0 8px rgba(135, 206, 235, 0.5);
+}
+
+/* Blog标题样式 */
+.blog-title {
+  position: absolute;
+  font-size: 28px;
+  font-weight: bold;
+  color: #ffffff;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(135, 206, 235, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 5px 15px;
+  border-radius: 8px;
+  z-index: 1;
+  position: relative;
+}
+
+/* 添加tooltip样式 */
+.blog-title .tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: normal;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  margin-top: 5px;
+}
+
+.blog-title:hover .tooltip {
+  opacity: 1;
+}
+
+.blog-title:hover {
+  color: #87CEEB;
+  transform: scale(1.02);
+  transition: all 0.3s ease;
+}
+
+/* 修改hover效果 */
+.blog-title::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(135, 206, 235, 0);
+  border-radius: 8px;
+  z-index: -1;
+  transition: all 0.3s ease;
+}
+
+.blog-title:hover::before {
+  background: rgba(135, 206, 235, 0.1);
+}
+
+/* 容器样式 */
+.nav-items-container {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  z-index: 1;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOutUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOutDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+/* 为导航链接动画设置过渡 */
+.fade-up-enter-active {
+  animation: fadeInDown 0.5s ease-in-out;
+}
+.fade-up-leave-active {
+  animation: fadeOutUp 0.5s ease-in-out;
+}
+
+/* 为博客标题动画设置过渡 */
+.fade-down-enter-active {
+  animation: fadeInDown 0.5s ease-in-out;
+}
+.fade-down-leave-active {
+  animation: fadeOutUp 0.5s ease-in-out;
+}
+
+/* 导航内容包装器，使元素可以重叠 */
+.nav-content-wrapper {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 暗色主题适配 */
+.dark-theme .nav {
+  background: #000000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .logo a,
+.dark-theme .nav-link {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .dropdown-menu {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .dropdown-item {
+  color: #ffffff;
+}
+
+.dark-theme .dropdown-item:hover {
+  background: rgba(135, 206, 235, 0.15);
+  color: #87CEEB;
+}
+
+.dark-theme .action-btn {
+  color: #ffffff;
+}
+
+.dark-theme .action-btn:hover {
+  color: #87CEEB;
+}
+
+.dark-theme .blog-title {
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(135, 206, 235, 0.3);
+}
+
+.dark-theme .blog-title:hover {
+  color: #87CEEB;
+  background: rgba(135, 206, 235, 0.15);
+}
+
+.dark-theme .mobile-menu-btn {
+  color: #ffffff;
+}
+
+.dark-theme .nav-links.mobile-menu-open {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+/* 确保暗色主题下的滚动指示器样式 */
+.dark-theme .scroll-indicator {
+  background-color: rgba(135, 206, 235, 0.8);
+  box-shadow: 0 0 8px rgba(135, 206, 235, 0.5);
+}
+
+/* 暗色主题下的tooltip样式 */
+.dark-theme .blog-title .tooltip {
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  box-shadow: 0 0 10px rgba(135, 206, 235, 0.3);
+}
+
+.dark-theme .mobile-menu-btn {
+  color: #ffffff;
 }
 </style>
 

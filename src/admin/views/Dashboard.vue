@@ -379,6 +379,7 @@
 import { ref, computed, onMounted, watch, reactive } from 'vue'
 import { Icon } from '@iconify/vue'
 import MessageNotification from '@/components/MessageNotification.vue'
+import { config } from '../../config/index'
 
 // 定义类型接口
 interface Tag {
@@ -412,7 +413,7 @@ interface HeatmapCell {
 const notification = ref<InstanceType<typeof MessageNotification> | null>(null)
 
 // API基础URL
-const API_BASE_URL = 'http://localhost:8088/api'
+const API_BASE_URL = config.api.apiUrl
 
 // 统计数据
 const statistics = reactive({
@@ -429,7 +430,13 @@ const diskUsage = ref(0)
 // 获取真实系统状态
 const fetchSystemStats = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/system/stats`)
+    const response = await fetch(`${API_BASE_URL}/system/stats`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    })
     if (response.ok) {
       const data = await response.json()
       
@@ -485,7 +492,13 @@ const animateValue = (ref: any, newValue: number, duration: number) => {
 // 获取统计数据
 const fetchStatistics = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/statistics`)
+    const response = await fetch(`${API_BASE_URL}/statistics`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    })
     if (response.ok) {
       const data = await response.json()
       
@@ -511,7 +524,13 @@ const heatmapData = ref<HeatmapCell[]>([])
 // 获取文章热图数据
 const fetchHeatmapData = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/articles/heatmap`)
+    const response = await fetch(`${API_BASE_URL}/articles/heatmap`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    })
     if (response.ok) {
       const data = await response.json()
       heatmapData.value = data.map((item: any) => ({
@@ -627,14 +646,20 @@ const newTag = ref<Tag>({ id: 0, name: '', size: 16, color: '#4f86f7' })
 // 获取标签云数据
 const fetchTags = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/tags`)
+    const response = await fetch(`${API_BASE_URL}/tags`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    })
     if (response.ok) {
       const data = await response.json()
       tags.value = data.map((tag: any) => ({
         id: tag.id,
         name: tag.name,
-        size: tag.size || Math.floor(Math.random() * 10) + 14, // 如果没有size字段，则随机生成
-        color: tag.color || `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)` // 如果没有color字段，则随机生成
+        size: tag.size || Math.floor(Math.random() * 10) + 14,
+        color: tag.color || `hsl(${Math.floor(Math.random() * 360)}, 70%, 60%)`
       }))
     } else {
       console.error('获取标签失败')
@@ -691,7 +716,9 @@ const saveTag = async () => {
     
     const response = await fetch(url, {
       method,
+      credentials: 'include',
       headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(tagData)
@@ -732,7 +759,12 @@ const deleteTag = async (tag: Tag) => {
   
   try {
     const response = await fetch(`${API_BASE_URL}/tags/${tag.id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
     })
     
     if (response.ok) {
@@ -756,7 +788,13 @@ const newProgressItem = ref('')
 // 获取开发进度数据
 const fetchProgressItems = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/progress`)
+    const response = await fetch(`${API_BASE_URL}/progress`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    })
     if (response.ok) {
       progressItems.value = await response.json()
     } else {
@@ -785,7 +823,9 @@ const addProgressItem = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/progress`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -814,7 +854,9 @@ const toggleProgressItemStatus = async (item: ProgressItem) => {
   try {
     const response = await fetch(`${API_BASE_URL}/progress/${item.id}`, {
       method: 'PUT',
+      credentials: 'include',
       headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -846,7 +888,12 @@ const deleteProgressItem = async (item: ProgressItem) => {
   
   try {
     const response = await fetch(`${API_BASE_URL}/progress/${item.id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
     })
     
     if (response.ok) {

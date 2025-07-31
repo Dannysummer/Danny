@@ -79,12 +79,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-@font-face {
-  font-family: 'ZhuShiAMaruGothic';
-  src: url('../assets/fonts/chinese/筑紫a丸粗.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
+/* 使用配置化的中文字体 - ZhuZiAWan */
 
 .poetry-card {
   width: calc(100%);
@@ -120,7 +115,7 @@ onMounted(() => {
   color: #fff;
   margin: 10px 0px;
   text-align: center;
-  font-family: 'ZhuShiAMaruGothic', KaiTi, serif;
+  font-family: var(--font-chinese-poetry);
   white-space: pre-line;
   display: -webkit-box;
   -webkit-line-clamp: 2;

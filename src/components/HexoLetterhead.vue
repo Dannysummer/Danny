@@ -64,6 +64,18 @@
                     :class="{ 'error': errors.url }"
                   />
                 </div>
+                <div class="form-item">
+                  <label>邮箱：</label>
+                  <input 
+                    type="email" 
+                    v-model="formData.pendingEmail" 
+                    @click.stop
+                    :class="{ 'error': errors.pendingEmail }"
+                    :readonly="userStore.isLoggedIn"
+                    :title="userStore.isLoggedIn ? '登录状态下自动填充邮箱' : '请输入您的邮箱地址'"
+                  />
+                  <small v-if="userStore.isLoggedIn" class="auto-fill-note">已自动填充登录邮箱</small>
+                </div>
                 <div class="error-message" v-if="submitError">{{ submitError }}</div>
                 <button 
                   class="submit-btn" 
@@ -115,7 +127,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from 'vue'
+import { ref, watch, reactive, computed, onMounted } from 'vue'
+import { config } from '../config/index'
+import { useUserStore } from '../stores/user'
+import { useMessage } from '../stores/message'
 
 interface FormData {
   name: string
@@ -123,6 +138,7 @@ interface FormData {
   url: string
   avatar: string
   cover: string
+  pendingEmail: string
   category: string
 }
 
@@ -132,6 +148,7 @@ interface FormErrors {
   url: boolean
   avatar: boolean
   cover: boolean
+  pendingEmail: boolean
 }
 
 type FormKey = keyof FormData
@@ -141,6 +158,12 @@ const isActive = ref(false)
 const isSubmitting = ref(false)
 const submitError = ref('')
 
+// 用户状态管理
+const userStore = useUserStore()
+
+// 消息通知
+const message = useMessage()
+
 // 表单数据
 const formData = reactive<FormData>({
   name: '',
@@ -148,6 +171,7 @@ const formData = reactive<FormData>({
   url: '',
   avatar: '',
   cover: '',
+  pendingEmail: '',
   category: 'friend'
 })
 
@@ -157,7 +181,8 @@ const errors = reactive<FormErrors>({
   description: false,
   url: false,
   avatar: false,
-  cover: false
+  cover: false,
+  pendingEmail: false
 })
 
 const toggleEnvelope = () => {
@@ -182,6 +207,7 @@ watch(isActive, (newValue) => {
 // 验证表单
 const validateForm = () => {
   let isValid = true
+  let errorMessages: string[] = []
   
   // 重置错误状态
   const errorKeys = Object.keys(errors) as ErrorKey[]
@@ -192,38 +218,74 @@ const validateForm = () => {
   // 验证名称
   if (!formData.name.trim()) {
     errors.name = true
+    errorMessages.push('请填写友链名称')
     isValid = false
   } else if (formData.name.length > 20) {
     errors.name = true
+    errorMessages.push('友链名称不能超过20个字符')
     isValid = false
   }
   
   // 验证简介
   if (!formData.description.trim()) {
     errors.description = true
+    errorMessages.push('请填写友链简介')
     isValid = false
   } else if (formData.description.length > 20) {
     errors.description = true
+    errorMessages.push('友链简介不能超过20个字符')
     isValid = false
   }
   
   // 验证URL
   const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/
-  if (!formData.url.trim() || !urlPattern.test(formData.url)) {
+  if (!formData.url.trim()) {
     errors.url = true
+    errorMessages.push('请填写网站地址')
+    isValid = false
+  } else if (!urlPattern.test(formData.url)) {
+    errors.url = true
+    errorMessages.push('请填写正确的网站地址格式')
     isValid = false
   }
   
   // 验证头像URL
-  if (!formData.avatar.trim() || !formData.avatar.startsWith('http')) {
+  if (!formData.avatar.trim()) {
     errors.avatar = true
+    errorMessages.push('请填写头像地址')
+    isValid = false
+  } else if (!formData.avatar.startsWith('http')) {
+    errors.avatar = true
+    errorMessages.push('头像地址必须以http开头')
     isValid = false
   }
   
   // 验证封面URL
-  if (!formData.cover.trim() || !formData.cover.startsWith('http')) {
+  if (!formData.cover.trim()) {
     errors.cover = true
+    errorMessages.push('请填写封面地址')
     isValid = false
+  } else if (!formData.cover.startsWith('http')) {
+    errors.cover = true
+    errorMessages.push('封面地址必须以http开头')
+    isValid = false
+  }
+  
+  // 验证邮箱
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!formData.pendingEmail.trim()) {
+    errors.pendingEmail = true
+    errorMessages.push('请填写邮箱地址')
+    isValid = false
+  } else if (!emailPattern.test(formData.pendingEmail)) {
+    errors.pendingEmail = true
+    errorMessages.push('请填写正确的邮箱格式')
+    isValid = false
+  }
+  
+  // 如果有错误，显示第一个错误信息
+  if (!isValid && errorMessages.length > 0) {
+    message.error(errorMessages[0])
   }
   
   return isValid
@@ -235,47 +297,130 @@ const handleSubmit = async () => {
     // 重置错误信息
     submitError.value = ''
     
-    // 表单验证
+    // 表单验证（内部会显示具体错误信息）
     if (!validateForm()) {
-      submitError.value = '请检查表单填写是否正确'
       return
     }
     
     isSubmitting.value = true
     
-    const response = await fetch('http://localhost:8088/api/friend-links/apply', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
-      body: JSON.stringify(formData)
-    })
-
-    const data = await response.json()
+    // 设置请求超时时间为5秒
+    const timeoutId = setTimeout(() => {
+      console.log('API请求超时，切换到离线模式')
+    }, 5000)
     
-    if (data.success) {
-      // 提交成功，重置表单
+    try {
+      const response = await Promise.race([
+        fetch(`${config.api.apiUrl}/friend-links-pending/apply`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(formData)
+        }),
+        new Promise<Response>((_, reject) => 
+          setTimeout(() => reject(new Error('请求超时')), 5000)
+        )
+      ]) as Response
+
+      clearTimeout(timeoutId)
+      
+      if (response) {
+        const data = await response.json()
+        
+        if (response.ok && data.success) {
+          // 提交成功，重置表单
+          const formKeys = Object.keys(formData) as FormKey[]
+          formKeys.forEach(key => {
+            if (key !== 'category' && key !== 'pendingEmail') {
+              formData[key] = ''
+            }
+          })
+          // 邮箱字段根据登录状态处理：登录时保持，未登录时清空
+          if (!userStore.isLoggedIn) {
+            formData.pendingEmail = ''
+          }
+          // 关闭信封
+          isActive.value = false
+          // 显示成功提示
+          console.log('准备显示成功消息')
+          message.success('友链申请提交成功，请等待审核！')
+          console.log('成功消息已调用')
+        } else {
+          // 提交失败，保留表单数据，显示具体的错误信息
+          const errorMessage = data.message || data.error || `服务器错误 (${response.status})`
+          message.error(errorMessage)
+          submitError.value = errorMessage
+        }
+      } else {
+        throw new Error('网络请求失败')
+      }
+    } catch (apiError) {
+      clearTimeout(timeoutId)
+      console.warn('API服务不可用，使用离线模式:', apiError)
+      
+      // 在没有后端服务的情况下，提供友好的用户体验
+      // 保存申请信息到本地存储，供后续处理
+      const applicationData = {
+        ...formData,
+        timestamp: new Date().toISOString(),
+        id: `temp_${Date.now()}`
+      }
+      
+      // 保存到本地存储
+      const savedApplications = JSON.parse(localStorage.getItem('pendingFriendLinkApplications') || '[]')
+      savedApplications.push(applicationData)
+      localStorage.setItem('pendingFriendLinkApplications', JSON.stringify(savedApplications))
+      
+      // 离线模式下也重置表单
       const formKeys = Object.keys(formData) as FormKey[]
       formKeys.forEach(key => {
-        if (key !== 'category') {
+        if (key !== 'category' && key !== 'pendingEmail') {
           formData[key] = ''
         }
       })
+      // 邮箱字段根据登录状态处理：登录时保持，未登录时清空
+      if (!userStore.isLoggedIn) {
+        formData.pendingEmail = ''
+      }
+      
       // 关闭信封
       isActive.value = false
-      // 显示成功提示
-      alert('申请提交成功，请等待审核！')
-    } else {
-      submitError.value = data.message || '提交失败，请稍后重试'
+      
+      // 显示离线模式成功提示
+      message.success('申请已暂存成功！后端服务暂时不可用，请联系站长处理。', { duration: 5000 })
+      message.info(`申请信息：${applicationData.name} - ${applicationData.description}`, { duration: 8000 })
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('提交失败:', error)
-    submitError.value = '网络错误，请稍后重试'
+    // 失败时不清空表单，保留用户输入的数据
+    const errorMessage = error.message || '提交失败，请稍后重试'
+    message.error(errorMessage)
+    submitError.value = errorMessage
   } finally {
     isSubmitting.value = false
   }
 }
+
+// 组件挂载时自动填充邮箱
+onMounted(() => {
+  // 如果用户已登录且有邮箱信息，自动填充
+  if (userStore.isLoggedIn && userStore.userInfo?.email) {
+    formData.pendingEmail = userStore.userInfo.email
+  }
+})
+
+// 监听登录状态变化，自动填充或清空邮箱
+watch(() => userStore.isLoggedIn, (newValue) => {
+  if (newValue && userStore.userInfo?.email) {
+    // 用户登录时，自动填充邮箱
+    formData.pendingEmail = userStore.userInfo.email
+  } else if (!newValue) {
+    // 用户登出时，清空邮箱
+    formData.pendingEmail = ''
+  }
+})
 </script>
 
 <style scoped>
@@ -447,6 +592,21 @@ const handleSubmit = async () => {
   border: 1px solid #ddd;
   border-radius: 4px;
   background: #f5f5f5;
+}
+
+.form-item input[readonly] {
+  background: #e8f4f8;
+  color: #0066cc;
+  border-color: #0066cc;
+  cursor: not-allowed;
+}
+
+.auto-fill-note {
+  color: #0066cc;
+  font-size: 11px;
+  margin-top: 2px;
+  display: block;
+  font-style: italic;
   position: relative;
   z-index: 3;
   transition: all 0.3s ease;

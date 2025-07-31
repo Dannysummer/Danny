@@ -34,6 +34,10 @@
 
     <!-- 友链列表 -->
     <div class="friend-links-container">
+      <!-- 调试信息 -->
+      <div style="color: white; padding: 10px; background: rgba(0,0,0,0.3); margin-bottom: 10px;">
+        当前标签: {{ currentTab }} | 待审核数量: {{ pendingLinks.length }} | 已通过数量: {{ approvedLinks.length }}
+      </div>
       <!-- 已通过的友链 -->
       <div v-if="currentTab === 'approved'" class="friend-links-sections">
         <div v-for="(links, category) in groupedApprovedLinks" :key="category" class="category-section">
@@ -69,6 +73,10 @@
 
       <!-- 待审核的友链 -->
       <div v-else class="friend-links-grid">
+        <!-- 调试信息 -->
+        <div v-if="pendingLinks.length === 0" style="color: white; padding: 20px;">
+          没有待审核的友链数据 (pendingLinks.length = {{ pendingLinks.length }})
+        </div>
         <div v-for="link in pendingLinks" :key="link.id" class="friend-card pending">
           <div class="friend-card-cover">
             <img :src="link.cover" :alt="link.name" />
@@ -80,6 +88,7 @@
               <div class="friend-details">
                 <h3>{{ link.name }}</h3>
                 <p>{{ link.description }}</p>
+                <p v-if="link.pendingEmail || link.email" class="friend-email">📧 {{ link.pendingEmail || link.email }}</p>
               </div>
             </div>
             <div class="category-select">
@@ -136,6 +145,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { config } from '../../config/index'
 
 interface FriendLink {
   id: number
@@ -144,7 +154,10 @@ interface FriendLink {
   url: string
   avatar: string
   cover: string
+  email?: string
+  pendingEmail?: string
   category: string
+  status?: string
   delay?: string
 }
 
@@ -179,32 +192,70 @@ const groupedApprovedLinks = computed(() => {
 const fetchFriendLinks = async () => {
   try {
     isLoading.value = true
+    console.log('开始获取友链数据...')
+    console.log('API Base URL:', config.api.apiUrl)
     
     // 获取已通过的友链
-    const approvedResponse = await fetch('http://localhost:8088/api/friend-links/all', {
+    const approvedUrl = `${config.api.apiUrl}/friend-links/all`
+    console.log('获取已通过友链 URL:', approvedUrl)
+    
+    const approvedResponse = await fetch(approvedUrl, {
       credentials: 'include'
     })
+    console.log('已通过友链响应状态:', approvedResponse.status, approvedResponse.statusText)
+    
     const approvedData = await approvedResponse.json()
+    console.log('已通过友链原始数据:', approvedData)
     
-    // 获取待审核的友链
-    const pendingResponse = await fetch('http://localhost:8088/api/friend-links/pending', {
+    // 获取待审核的友链 - 只加载status为pending状态的友链
+    const pendingUrl = `${config.api.apiUrl}/friend-links-pending?status=pending`
+    console.log('获取待审核友链 URL:', pendingUrl)
+    
+    const pendingResponse = await fetch(pendingUrl, {
       credentials: 'include'
     })
+    console.log('待审核友链响应状态:', pendingResponse.status, pendingResponse.statusText)
+    
     const pendingData = await pendingResponse.json()
+    console.log('待审核友链原始数据:', pendingData)
     
-    if (approvedData.success) {
+    if (approvedResponse.ok && approvedData.success) {
       approvedLinks.value = approvedData.data || []
+      console.log('已设置已通过友链数量:', approvedLinks.value.length)
+    } else {
+      console.error('获取已通过友链失败:', approvedData)
+      showAlert(`获取已通过友链失败: ${approvedData.message || '未知错误'}`, 'error')
     }
     
-    if (pendingData.success) {
+    if (pendingResponse.ok && pendingData.success) {
+      // 详细检查每条记录的status
+      console.log('原始待审核友链数量:', pendingData.data?.length || 0)
+      if (pendingData.data && pendingData.data.length > 0) {
+        const statusInfo = pendingData.data.slice(0, 3).map((link: any) => ({
+          id: link.id,
+          name: link.name,
+          status: link.status,
+          statusType: typeof link.status,
+          全字段: link
+        }))
+        console.log('前3条记录的详细信息:', statusInfo)
+        console.log('第一条记录的完整数据:', pendingData.data[0])
+      }
+      
+      // 暂时不过滤，直接显示所有数据
       pendingLinks.value = pendingData.data || []
+      console.log('已设置待审核友链数量:', pendingLinks.value.length)
+      console.log('待审核友链详细数据:', pendingLinks.value)
+    } else {
+      console.error('获取待审核友链失败:', pendingData)
+      showAlert(`获取待审核友链失败: ${pendingData.message || '未知错误'}`, 'error')
     }
     
-    console.log('已通过的友链:', approvedLinks.value)
-    console.log('待审核的友链:', pendingLinks.value)
-  } catch (error) {
-    console.error('获取友链失败:', error)
-    showAlert('获取友链失败，请重试', 'error')
+    console.log('最终结果 - 已通过的友链:', approvedLinks.value)
+    console.log('最终结果 - 待审核的友链 (仅pending状态):', pendingLinks.value)
+  } catch (error: any) {
+    console.error('获取友链失败 - 网络错误:', error)
+    showAlert(`获取友链失败: ${error.message || '网络连接失败'}`, 'error')
   } finally {
     isLoading.value = false
   }
@@ -213,7 +264,7 @@ const fetchFriendLinks = async () => {
 // 通过友链
 const handleApprove = async (link: FriendLink) => {
   try {
-    const response = await fetch(`http://localhost:8088/api/friend-links/${link.id}/approve`, {
+    const response = await fetch(`${config.api.apiUrl}/friend-links-pending/${link.id}/approve`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -255,7 +306,7 @@ const confirmReject = async () => {
   
   try {
     // 后端请求异步处理
-    const response = await fetch(`http://localhost:8088/api/friend-links/${currentRejectLink.value.id}/reject`, {
+    const response = await fetch(`${config.api.apiUrl}/friend-links-pending/${currentRejectLink.value.id}/reject`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -284,7 +335,7 @@ const handleDelete = async (id: number) => {
   if (!confirm('确定要删除这个友链吗？')) return
   
   try {
-    const response = await fetch(`http://localhost:8088/api/friend-links/${id}`, {
+    const response = await fetch(`${config.api.apiUrl}/friend-links/${id}`, {
       method: 'DELETE',
       credentials: 'include'
     })
@@ -482,6 +533,13 @@ onMounted(fetchFriendLinks)
   color: rgb(255, 255, 255);
 }
 
+.friend-email {
+  font-size: 12px !important;
+  color: #87ceeb !important;
+  margin-top: 5px !important;
+  opacity: 0.9;
+}
+
 .friend-actions {
   display: flex;
   gap: 10px;
@@ -491,6 +549,7 @@ onMounted(fetchFriendLinks)
 .delete-btn {
   display: flex;
   align-items: center;
+
   gap: 4px;
   padding: 6px 12px;
   border: none;
@@ -503,14 +562,14 @@ onMounted(fetchFriendLinks)
 
 .visit-btn {
   border: solid 1px #22f8ff;
-  background: var(--primary-color);
+  background: #2f2f2f00;
   margin-left: auto;
   color: white;
 }
 
 .visit-btn:hover {
   color: #22f8ff;
-  background: var(--primary-color-dark);
+  background: #112630;
 }
 
 .delete-btn {

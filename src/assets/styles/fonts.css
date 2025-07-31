@@ -17,20 +17,22 @@
   font-display: swap;
 }
 
-/* 中文字体 */
+/* 中文字体 - 统一使用ZhuZiAWan */
 @font-face {
-  font-family: 'Noto Sans SC';
-  src: url('/fonts/chinese/noto-sans/NotoSansSC-Regular.woff2') format('woff2'),
-       url('/fonts/chinese/noto-sans/NotoSansSC-Regular.woff') format('woff');
+  font-family: 'ZhuZiAWan';
+  src: url('/fonts/chinese/ZhuZiAWan-Regular.woff2') format('woff2'),
+       url('/fonts/chinese/ZhuZiAWan-Regular.woff') format('woff'),
+       url('../fonts/chinese/AaFengKuangYuanShiRen-2.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Noto Sans SC';
-  src: url('/fonts/chinese/noto-sans/NotoSansSC-Bold.woff2') format('woff2'),
-       url('/fonts/chinese/noto-sans/NotoSansSC-Bold.woff') format('woff');
+  font-family: 'ZhuZiAWan';
+  src: url('/fonts/chinese/ZhuZiAWan-Bold.woff2') format('woff2'),
+       url('/fonts/chinese/ZhuZiAWan-Bold.woff') format('woff'),
+       url('../fonts/chinese/AaFengKuangYuanShiRen-2.ttf') format('truetype');
   font-weight: bold;
   font-style: normal;
   font-display: swap;

@@ -42,10 +42,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { timelineData } from '../data/articles'
 import { useRouter } from 'vue-router'
+import { getArticleNavigation, type Article } from '../services/article'
 
 const router = useRouter()
 
@@ -53,28 +53,39 @@ const props = defineProps<{
   currentArticleId: number
 }>()
 
-// 获取所有文章并按时间排序
-const allArticles = computed(() => {
-  return timelineData
-    .flatMap(year => year.articles)
-    .sort((a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime())
-})
+const prevArticle = ref<Article | null>(null)
+const nextArticle = ref<Article | null>(null)
+const isLoading = ref(true)
 
-// 获取当前文章的索引
-const currentIndex = computed(() => {
-  return allArticles.value.findIndex(article => article.id === props.currentArticleId)
-})
+// 加载文章导航信息
+const loadArticleNavigation = async () => {
+  if (!props.currentArticleId) return
+  
+  try {
+    isLoading.value = true
+    const navigation = await getArticleNavigation(props.currentArticleId)
+    prevArticle.value = navigation.prevArticle
+    nextArticle.value = navigation.nextArticle
+    console.log('文章导航加载成功')
+  } catch (error) {
+    console.error('加载文章导航失败:', error)
+    prevArticle.value = null
+    nextArticle.value = null
+  } finally {
+    isLoading.value = false
+  }
+}
 
-// 获取上一篇文章
-const prevArticle = computed(() => {
-  return currentIndex.value > 0 ? allArticles.value[currentIndex.value - 1] : null
-})
+// 当当前文章ID变化时重新加载导航
+watch(() => props.currentArticleId, (newId) => {
+  if (newId) {
+    loadArticleNavigation()
+  }
+}, { immediate: true })
 
-// 获取下一篇文章
-const nextArticle = computed(() => {
-  return currentIndex.value < allArticles.value.length - 1 
-    ? allArticles.value[currentIndex.value + 1] 
-    : null
+// 组件挂载时加载数据
+onMounted(() => {
+  loadArticleNavigation()
 })
 
 const navigateToArticle = (article: any) => {

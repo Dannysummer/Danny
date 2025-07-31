@@ -71,8 +71,8 @@ const isExternalLink = computed(() => {
 
 .line {
   width: 100%;
-  height: 1px;
-  background-color: var(--border-color, #000000);
+  height: 2px;
+  background-color: #000000;
   margin: 10px 0;
 }
 
@@ -86,7 +86,7 @@ const isExternalLink = computed(() => {
   text-decoration: none;
   color: var(--text-color, inherit);
   margin-bottom: 16px;
-  border: 1px solid var(--border-color, #000000);
+  border: 2px solid #000000;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
   position: relative;
@@ -180,4 +180,15 @@ const isExternalLink = computed(() => {
 :root.dark-theme .share-link-description {
   color: #bbb;
 }
+
+/* :root.dark-theme .line {
+  background-color: #ffffff;
+}
+
+:root.dark-theme .share-link-container {
+  border: 2px solid #ffffff;
+} */
+
+
+
 </style> 

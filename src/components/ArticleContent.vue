@@ -17,11 +17,11 @@
           <div class="banner-meta">
             <div class="meta-item">
               <Icon icon="mdi:pencil" />
-              <span>发表于: {{ article.createTime }}</span>
+              <span>发表于: {{ formatDate(article.createTime) }}</span>
             </div>
             <div class="meta-item">
               <Icon icon="mdi:update" />
-              <span>更新于: {{ article.updateTime || article.createTime }}</span>
+              <span>更新于: {{ formatDate(article.updateTime || article.createTime) }}</span>
             </div>
             <div class="meta-item">
               <Icon icon="mdi:clock-outline" />
@@ -140,6 +140,7 @@
   import hljs from 'highlight.js'
   import 'highlight.js/styles/atom-one-dark.css'
   import { generateSummary as genAISummary, AI_MODEL, type AIModel } from '../services/openai'
+  import { formatDate } from '../utils/formatDate'
   import QuickNav from './QuickNav.vue'
   import RecentArticles from './RecentArticles.vue'
   import CopyrightCard from './CopyrightCard.vue'
@@ -443,8 +444,12 @@
       const contentEl = document.querySelector('.article-content');
       if (!contentEl) return;
 
+      // 先移除可能存在的事件监听，避免重复
+      contentEl.removeEventListener('click', handleLinkClick as EventListener);
+      // 添加事件监听
       contentEl.addEventListener('click', handleLinkClick as EventListener);
-    }, 500); // 确保DOM已完全渲染
+      console.log('外链点击事件监听已添加');
+    }, 1000); // 增加延迟时间以确保DOM已完全渲染
   }
 
   // 移除外链点击事件处理
@@ -484,12 +489,11 @@
     try {
       // 解析URL
       const parsedUrl = new URL(url);
-      const currentHost = window.location.hostname;
       
-      // 如果链接是http/https协议，且不是当前域名，则视为外链
+      // 如果链接是http/https协议，且不包含dansela域名，则视为外链
       return (
         (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') && 
-        parsedUrl.hostname !== currentHost
+        !parsedUrl.hostname.includes('dansela')
       );
     } catch (e) {
       // URL解析错误，可能是相对路径，不是外链

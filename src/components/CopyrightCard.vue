@@ -23,14 +23,14 @@
             <Icon icon="mdi:calendar" class="item-icon" />
             <span class="item-label">发布时间：</span>
           </span>
-          <span class="item-create-time-value">{{ article.createTime }}</span>
+          <span class="item-create-time-value">{{ formatDate(article.createTime) }}</span>
         </div>
         <div class="info-item">
           <span class="icon-label">
             <Icon icon="mdi:calendar" class="item-icon" />
             <span class="item-label">更新时间：</span>
           </span>
-          <span class="item-create-time-value">{{ article.updateTime }}</span>
+          <span class="item-create-time-value">{{ formatDate(article.updateTime) }}</span>
         </div>
         <div class="info-item">
           <span class="icon-label">
@@ -101,6 +101,7 @@
 import { Icon } from '@iconify/vue'
 import { ref, nextTick } from 'vue'
 import QRCode from 'qrcode'
+import { formatDate } from '../utils/formatDate'
 
 const props = defineProps<{
   article: {
@@ -180,7 +181,7 @@ const showQRCode = async (type: 'wechat' | 'qq') => {
 
 <style scoped>
 .copyright-card {
-  font-family: 'ZhuZiAWan';
+  font-family: var(--font-chinese-primary);
   background: rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(10px);
   border-radius: 12px;
@@ -453,10 +454,5 @@ const showQRCode = async (type: 'wechat' | 'qq') => {
   }
 }
 
-@font-face {
-    font-family: 'ZhuZiAWan';
-    src: url('@/assets/fonts/chinese/筑紫a丸粗.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-  }
+/* 字体定义已移至全局配置 */
 </style> 

@@ -362,6 +362,21 @@
       </div>
     </div>
 
+    <!-- 激光卡片弹窗 -->
+    <div v-if="showLaserCard" class="laser-card-modal">
+      <div class="laser-card-container">
+        <!-- <div class="close-btn" @click="closeLaserCard">×</div> -->
+        <h3 class="welcome-title">欢迎加入！这是您的专属卡片</h3>
+        <LaserCard 
+          :username="userStore.userInfo?.username" 
+          :createTime="formatDate(userStore.userInfo?.registrationTime)" 
+          :rank="userStore.userInfo?.userRank"
+          :useId="userStore.userInfo?.id?.toString() || '00000000'"
+        />
+        <div class="confirm-btn" @click="closeLaserCard">我已收藏</div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -374,6 +389,8 @@ import { useRouter } from 'vue-router'
 import ParticlesBackground from '../components/ParticlesBackground.vue'
 import axios from '../utils/axios'
 import CustomAlert from '../components/CustomAlert.vue'
+import LaserCard from '../components/LaserCard.vue'
+import { config } from '../config/index'
 
 const themeStore = useThemeStore()
 const userStore = useUserStore()
@@ -423,6 +440,10 @@ const showAdminVerify = ref(false)
 const adminVerifyCode = ref('')
 const adminVerifyCountdown = ref(0)
 const adminVerifyLoading = ref(false)
+
+// 激光卡片相关状态
+const showLaserCard = ref(false)
+const userRank = ref('1')  // 默认排名，实际应从API获取
 
 // 修改 alertConfig 的定义
 const alertConfig = ref<{
@@ -726,7 +747,7 @@ const handleSubmit = async () => {
       
     } else {
       // 注册逻辑
-      const response = await fetch('http://localhost:8088/api/auth/register', {
+      const response = await fetch(`${config.api.apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -741,26 +762,26 @@ const handleSubmit = async () => {
 
       const data = await response.json()
       if (data.success) {
-        showAlert('注册成功！正在为您自动登录...', 'success')
+        showAlert('注册成功！', 'success')
         
-        // 保存注册的用户名和密码
-        const registeredUsername = username.value
-        const registeredPassword = password.value
+        // 保存注册的用户信息到userStore
+        userStore.isLoggedIn = true;
+        userStore.userInfo = {
+          username: username.value,
+          id: data.data?.id || Date.now().toString(),
+          avatar: data.data?.avatar || '/avatars/default-avatar.png',
+          role: 'user',
+          email: email.value,
+          registrationTime: Date.now(),
+          createTime: formatDate(Date.now())
+        }
         
-        // 清空表单
-        email.value = ''
-        emailVerifyCode.value = ''
+        // 获取用户排名（这里使用模拟数据，实际项目中应从API获取）
+        const mockRank = Math.floor(Math.random() * 100) + 1;
+        userRank.value = mockRank.toString();
         
-        // 切换到登录模式
-        isLogin.value = true
-        
-        // 自动填充用户名和密码
-        nextTick(() => {
-          username.value = registeredUsername
-          password.value = registeredPassword
-          // 生成新的验证码
-          generateCaptcha()
-        })
+        // 显示LaserCard
+        showLaserCard.value = true;
       } else {
         throw new Error(data.message || '注册失败')
       }
@@ -783,7 +804,7 @@ const sendEmailVerifyCode = async () => {
   }
   
   try {
-    const response = await fetch('http://localhost:8088/api/auth/send-email-code', {
+    const response = await fetch(`${config.api.apiUrl}/auth/send-email-code`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -802,13 +823,13 @@ const sendEmailVerifyCode = async () => {
           clearInterval(timer)
         }
       }, 1000)
-      showAlert('验证码已发送到您的邮箱')
+      showAlert('友令已发送到您的邮箱啦，请注意查收！')
     } else {
-      throw new Error(data.message || '发送验证码失败')
+      throw new Error(data.message || '发送友令失败')
     }
   } catch (error: any) {
-    console.error('发送验证码失败:', error)
-    showAlert(error.message || '发送验证码失败，请重试', 'error')
+    console.error('发送友令失败:', error)
+    showAlert(error.message || '发送友令失败惹，请再试试', 'error')
   }
 }
 
@@ -835,7 +856,7 @@ const sendResetCode = async () => {
 
   try {
     // 异步发送请求
-    const response = await fetch('http://localhost:8088/api/auth/send-email-code', {
+    const response = await fetch(`${config.api.apiUrl}/auth/send-email-code`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -881,7 +902,7 @@ const handleResetPassword = async () => {
   }
 
   try {
-    const response = await fetch('http://localhost:8088/api/auth/reset-password', {
+    const response = await fetch(`${config.api.apiUrl}/auth/reset-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1097,7 +1118,7 @@ const sendAdminVerifyCode = async () => {
     
     if (!userEmail) {
       // 如果没有邮箱，从后端获取
-      const response = await fetch('http://localhost:8088/api/user/profile', {
+      const response = await fetch(`${config.api.apiUrl}/user/profile`, {
         method: 'GET',
         credentials: 'include'
       })
@@ -1109,7 +1130,7 @@ const sendAdminVerifyCode = async () => {
     }
     
     // 发送验证码 - 使用正确的邮件验证码接口
-    const response = await fetch('http://localhost:8088/api/auth/send-email-code', {
+    const response = await fetch(`${config.api.apiUrl}/auth/send-email-code`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1154,7 +1175,7 @@ const verifyAdminCode = async () => {
   try {
     adminVerifyLoading.value = true
     
-    const response = await fetch('http://localhost:8088/api/auth/verify-email-code', {
+    const response = await fetch(`${config.api.apiUrl}/auth/verify-email-code`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1187,6 +1208,19 @@ const verifyAdminCode = async () => {
   } finally {
     adminVerifyLoading.value = false
   }
+}
+
+// 格式化日期函数
+const formatDate = (timestamp?: number | string) => {
+  if (!timestamp) return '2023/01/01';
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// 关闭激光卡片
+const closeLaserCard = () => {
+  showLaserCard.value = false;
+  router.push('/');
 }
 </script>
 
@@ -2134,5 +2168,93 @@ input:-webkit-autofill:active {
 /* 调整模态框样式 */
 .modal-content {
   max-width: 450px;
+}
+
+/* LaserCard 模态框样式 */
+.laser-card-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.5s ease;
+}
+
+.laser-card-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  max-width: 95%;
+  max-height: 95%;
+  overflow: visible;
+  scrollbar-width: none; /* 针对 Firefox */
+  -ms-overflow-style: none; /* 针对 IE 和 Edge */
+}
+
+.welcome-title {
+  color: white;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  text-align: center;
+  background-image: linear-gradient(90deg, #2CF3FD, #f092ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 15px rgba(44, 243, 253, 0.4);
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
+}
+
+.confirm-btn {
+  margin-top: 20px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  background: linear-gradient(45deg, #2CF3FD, #f092ff);
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 15px rgba(44, 243, 253, 0.4);
+}
+
+.confirm-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 20px rgba(44, 243, 253, 0.7);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 </style> 

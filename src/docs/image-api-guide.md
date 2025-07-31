@@ -159,6 +159,7 @@ DELETE /api/images/{id}
 <script setup>
 import { ref } from 'vue';
 import axios from 'axios';
+import { config } from '../config/index';
 
 const files = ref([]);
 const uploadedImages = ref([]);
@@ -177,7 +178,7 @@ const uploadFiles = async () => {
   formData.append('type', 'image'); // 可以是image, avatar, cover, article
   
   try {
-    const response = await axios.post('http://localhost:8088/api/images/upload', formData, {
+    const response = await axios.post(`${config.api.apiUrl}/images/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
         'Authorization': `Bearer ${localStorage.getItem('token')}`

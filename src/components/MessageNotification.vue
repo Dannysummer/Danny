@@ -2,7 +2,7 @@
   <div class="message-notification-container">
     <transition-group name="message-fade">
       <div 
-        v-for="message in messages" 
+        v-for="message in messageStore.messages" 
         :key="message.id" 
         class="message-notification"
         :class="{ 
@@ -13,77 +13,23 @@
         }"
         :style="{ '--message-duration': `${message.duration}ms` }"
       >
-        <div class="message-content">{{ message.text }}</div>
+        <div class="message-content">{{ message.content }}</div>
       </div>
     </transition-group>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useMessageStore } from '../stores/message'
 
-interface Message {
-  id: number
-  text: string
-  type: 'success' | 'error' | 'warning' | 'info'
-  duration: number
-  leaving?: boolean  // 添加可选的leaving属性
-}
+// 使用消息store
+const messageStore = useMessageStore()
 
-const messages = ref<Message[]>([])
-let nextId = 0
-
-// 添加消息
-const addMessage = (text: string, type: 'success' | 'error' | 'warning' | 'info' = 'info', duration: number = 3000) => {
-  const id = nextId++
-  
-  const message = { 
-    id, 
-    text, 
-    type, 
-    duration 
-  }
-  
-  messages.value.push(message)
-  
-  // 自动移除消息
-  if (duration > 0) {
-    setTimeout(() => {
-      removeMessage(id)
-    }, duration)
-  }
-  
-  return id
-}
-
-// 移除消息
-const removeMessage = (id: number) => {
-  const index = messages.value.findIndex(msg => msg.id === id)
-  if (index !== -1) {
-    const message = messages.value[index]
-    message.leaving = true
-    
-    // 添加离开动画的时间
-    setTimeout(() => {
-      const newIndex = messages.value.findIndex(msg => msg.id === id)
-      if (newIndex !== -1) {
-        messages.value.splice(newIndex, 1)
-      }
-    }, 300) // 动画持续时间
-  }
-}
-
-// 清除所有消息
-const clearMessages = () => {
-  messages.value = []
-}
-
-// 暴露方法给父组件使用
-defineExpose({
-  addMessage,
-  removeMessage,
-  clearMessages
-})
+// 监听消息变化
+watch(() => messageStore.messages, (newMessages) => {
+  console.log('MessageNotification组件接收到消息:', newMessages)
+}, { immediate: true, deep: true })
 </script>
 
 <style scoped>

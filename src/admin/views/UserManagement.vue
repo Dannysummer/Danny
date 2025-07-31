@@ -318,6 +318,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useUserStore } from '@/stores/user'
+import { config } from '../../config/index'
 
 interface User {
   id: number
@@ -470,7 +471,7 @@ const fetchUsers = async () => {
       queryParams.append('status', filters.value.status)
     }
     
-    const response = await fetch(`http://localhost:8088/api/admin/users?${queryParams.toString()}`, {
+    const response = await fetch(`${config.api.apiUrl}/admin/users?${queryParams.toString()}`, {
       credentials: 'include'
     })
     const data = await response.json()
@@ -543,7 +544,7 @@ const closeUserModal = () => {
 // 添加用户
 const addUser = async () => {
   try {
-    const response = await fetch('http://localhost:8088/api/admin/users', {
+    const response = await fetch(`${config.api.apiUrl}/admin/users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -588,7 +589,7 @@ const updateUser = async () => {
   if (!currentUser.value) return
   
   try {
-    const response = await fetch(`http://localhost:8088/api/admin/users/${currentUser.value.id}`, {
+    const response = await fetch(`${config.api.apiUrl}/admin/users/${currentUser.value.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
@@ -630,7 +631,7 @@ const changeUserStatus = async () => {
   if (!currentUser.value) return
   
   try {
-    const response = await fetch(`http://localhost:8088/api/admin/users/${currentUser.value.id}/status`, {
+    const response = await fetch(`${config.api.apiUrl}/admin/users/${currentUser.value.id}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
@@ -666,7 +667,7 @@ const confirmResetPassword = async () => {
   if (!currentUser.value) return
   
   try {
-    const response = await fetch(`http://localhost:8088/api/admin/users/${currentUser.value.id}/reset-password`, {
+    const response = await fetch(`${config.api.apiUrl}/admin/users/${currentUser.value.id}/reset-password`, {
       method: 'POST',
       credentials: 'include'
     })
@@ -710,7 +711,7 @@ const deleteUser = async () => {
   if (!currentUser.value) return
   
   try {
-    const response = await fetch(`http://localhost:8088/api/admin/users/${currentUser.value.id}`, {
+    const response = await fetch(`${config.api.apiUrl}/admin/users/${currentUser.value.id}`, {
       method: 'DELETE',
       credentials: 'include'
     })

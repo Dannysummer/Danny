@@ -1,4 +1,5 @@
 import { getAuthHeaders } from '../utils/auth';
+import { config } from '../config/index'
 
 // 弹幕数据模型，与数据库结构对应
 export interface BulletChat {
@@ -10,7 +11,7 @@ export interface BulletChat {
 }
 
 // API基础URL
-const API_BASE_URL = 'http://localhost:8088/api';
+const API_BASE_URL = config.api.apiUrl;
 
 // 获取所有活跃的弹幕
 export const getActiveBulletChats = async (): Promise<BulletChat[]> => {

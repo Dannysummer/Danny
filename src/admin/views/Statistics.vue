@@ -103,6 +103,7 @@ import {
   GridComponent
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { config } from '../../config/index'
 
 // 注册 ECharts 组件
 echarts.use([
@@ -198,7 +199,7 @@ const fetchStatistics = async () => {
   isLoading.value = true
   try {
     // 获取数据卡片统计
-    const overviewResponse = await fetch(`http://localhost:8088/api/statistics/overview`, {
+    const overviewResponse = await fetch(`${config.api.apiUrl}/statistics/overview`, {
       credentials: 'include'
     })
     const overviewData = await overviewResponse.json()
@@ -221,7 +222,7 @@ const fetchStatistics = async () => {
     fetchArticleTrend()
     
     // 获取用户来源分布
-    const sourceResponse = await fetch(`http://localhost:8088/api/statistics/user-sources`, {
+    const sourceResponse = await fetch(`${config.api.apiUrl}/statistics/user-sources`, {
       credentials: 'include'
     })
     const sourceData = await sourceResponse.json()
@@ -231,7 +232,7 @@ const fetchStatistics = async () => {
     }
     
     // 获取设备分布
-    const deviceResponse = await fetch(`http://localhost:8088/api/statistics/devices`, {
+    const deviceResponse = await fetch(`${config.api.apiUrl}/statistics/devices`, {
       credentials: 'include'
     })
     const deviceData = await deviceResponse.json()
@@ -241,7 +242,7 @@ const fetchStatistics = async () => {
     }
     
     // 获取热门文章
-    const articlesResponse = await fetch(`http://localhost:8088/api/statistics/popular-articles`, {
+    const articlesResponse = await fetch(`${config.api.apiUrl}/statistics/popular-articles`, {
       credentials: 'include'
     })
     const articlesData = await articlesResponse.json()
@@ -261,7 +262,7 @@ const fetchStatistics = async () => {
 // 获取文章发布趋势
 const fetchArticleTrend = async () => {
   try {
-    const response = await fetch(`http://localhost:8088/api/statistics/article-trend?period=${selectedPeriod.value}`, {
+    const response = await fetch(`${config.api.apiUrl}/statistics/article-trend?period=${selectedPeriod.value}`, {
       credentials: 'include'
     })
     const data = await response.json()

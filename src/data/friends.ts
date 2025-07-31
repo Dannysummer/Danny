@@ -1,3 +1,5 @@
+import { config } from '../config/index'
+
 // 定义友链类型
 export interface FriendLink {
   id?: number
@@ -63,7 +65,7 @@ class FriendLinkService {
 
     if (!this._isLoaded && !this._isLoading) {
       try {
-        const response = await fetch(`http://localhost:8088/api/friend-links/category/${category}`, {
+        const response = await fetch(`${config.api.apiUrl}/friend-links/category/${category}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -95,7 +97,7 @@ class FriendLinkService {
     this._error = null
 
     try {
-      const response = await fetch('http://localhost:8088/api/friend-links', {
+      const response = await fetch(`${config.api.apiUrl}/friend-links`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'

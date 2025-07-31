@@ -1,5 +1,13 @@
 <template>
   <div class="home">
+    <!-- 添加视频背景 -->
+    <div class="video-background">
+      <video class="background-video" autoplay loop muted playsinline>
+        <source src="/vedio/夏日的风.mp4" type="video/mp4">
+      </video>
+      <div class="overlay"></div>
+    </div>
+    
     <Banner />
     
     <!-- 过渡 banner -->
@@ -140,19 +148,61 @@
             <!-- 友链 -->
             <div class="friend-links">
               <h3 class="section-title">友链</h3>
-              <!-- 友链内容 -->
+              <div class="car-container">
+                <img class="car" src="/gif/car.gif" alt="行驶的小车动画">
+              </div>
+              <div class="home-friends-grid">
+                <div 
+                  v-for="friend in topFriends" 
+                  :key="friend.name"
+                  class="home-friend-card"
+                  @click="openFriendLink(friend.url)"
+                >
+                  <div class="friend-avatar-container">
+                    <img :src="friend.avatar" :alt="friend.name" class="friend-avatar">
+                  </div>
+                  <div class="friend-info">
+                    <h4 class="friend-name">{{ friend.name }}</h4>
+                    <!-- <p class="friend-desc">{{ friend.description }}</p> -->
+                  </div>
+                </div>
+              </div>
+              <div class="view-more-friends">
+                <router-link to="/friends" class="more-friends-link">
+                  <span>查看更多友链</span>
+                  <Icon icon="material-symbols:arrow-forward" class="arrow-icon" />
+                </router-link>
+              </div>
             </div>
 
             <!-- 最新文章列表 -->
             <div class="recent-posts">
               <h3 class="section-title">最新文章</h3>
               <div class="post-list">
-                <div class="post-item" v-for="post in recentPosts" :key="post.id">
-                  <img :src="post.cover" :alt="post.title" class="post-thumb" />
+                <!-- 加载状态 -->
+                <div v-if="isLoadingRecentPosts" class="post-loading">
+                  <div class="mini-spinner"></div>
+                  <span>加载中...</span>
+                </div>
+                
+                <!-- 文章列表 -->
+                <router-link 
+                  v-else-if="recentPosts.length > 0" 
+                  v-for="post in recentPosts" 
+                  :key="post.id"
+                  :to="{ name: 'article', params: { id: post.id } }"
+                  class="post-item"
+                >
+                  <img :src="post.coverImage || post.cover || '/articles/cover/1.jpg'" :alt="post.title" class="post-thumb" />
                   <div class="post-info">
                     <h4 class="post-title">{{ post.title }}</h4>
-                    <span class="post-date">{{ post.date }}</span>
+                    <span class="post-date">{{ formatDate(post.publishDate || post.createTime) }}</span>
                   </div>
+                </router-link>
+                
+                <!-- 空状态 -->
+                <div v-else class="post-empty">
+                  <span>暂无最新文章</span>
                 </div>
               </div>
             </div>
@@ -206,27 +256,42 @@
           
           <!-- 文章列表区域 -->
           <div class="articles-container">
-            <article v-for="(article, index) in featuredArticles" 
+            <!-- 加载状态 -->
+            <div v-if="isLoadingArticles" class="loading-state">
+              <div class="loading-spinner"></div>
+              <span class="loading-text">正在加载精选文章...</span>
+            </div>
+            
+            <!-- 空状态 -->
+            <div v-else-if="featuredArticles.length === 0" class="empty-state">
+              <div class="empty-icon">📰</div>
+              <span class="empty-text">暂无精选文章</span>
+              <span class="api-hint">请实现 API: GET /api/articles/recent</span>
+            </div>
+            
+            <!-- 文章列表 -->
+            <article v-else
+                     v-for="(article, index) in featuredArticles" 
                      :key="article.id" 
                      class="featured-article"
                      :class="{ 'image-right': index % 2 === 1 }"
                      @mousemove="handleMouseMove"
                      @mouseleave="handleMouseLeave"
                      ref="articleRefs">
-              <div class="article-cover" :style="{ backgroundImage: `url(${article.cover})` }">
+              <div class="article-cover" :style="{ backgroundImage: `url(${article.coverImage || article.cover || '/articles/cover/1.jpg'})` }">
               </div>
               <div class="article-content">
                 <div class="article-meta">
                   <span class="article-category">{{ article.category }}</span>
-                  <span class="article-date">{{ article.date }}</span>
+                  <span class="article-date">{{ formatDate(article.publishDate || article.createTime) }}</span>
                 </div>
                 <h3 class="article-title">{{ article.title }}</h3>
-                <p class="article-summary">{{ article.summary }}</p>
+                <p class="article-summary">{{ article.aiSummary || article.excerpt || '暂无摘要...' }}</p>
                 <div class="article-footer">
                   <div class="article-tags">
                     <span v-for="tag in article.tags" :key="tag" class="tag">{{ tag }}</span>
                   </div>
-                  <router-link :to="`/article/${article.id}`" class="read-more">
+                  <router-link :to="{ name: 'article', params: { id: article.id } }" class="read-more">
                     阅读全文
                     <Icon icon="material-symbols:arrow-forward" class="arrow-icon" />
                   </router-link>
@@ -286,8 +351,41 @@
 <style scoped>
 .home {
   padding: 0;
-  background-color: #f4f5f5;
   position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* 视频背景相关样式 */
+.video-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.background-video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 115%; /* 扩大尺寸超出屏幕 */
+  height: 115%; /* 扩大尺寸超出屏幕 */
+  object-fit: cover;
+  transform: translate(-50%, -50%) scale(1.00); /* 初始缩放 */
+  transition: transform 0.6s cubic-bezier(0.25, 0.45, 0.45, 0.95);
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1;
 }
 
 .main-content {
@@ -297,6 +395,8 @@
   gap: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  position: relative;
+  z-index: 2;
 }
 
 .article-area {
@@ -397,7 +497,7 @@
 }
 
 .transition-banner {
-  background: url('/background/transition-banner-bg.jpg');
+  background: transparent;
   background-size: cover;
   background-position: center;
   padding: 60px 0;
@@ -405,7 +505,7 @@
   position: relative;
   overflow: hidden;
   z-index: 1;
-  height: 150px;
+  height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -418,8 +518,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.2);
   z-index: 2;
+  backdrop-filter: blur(3px);
 }
 
 .transition-content {
@@ -559,10 +660,9 @@
 }
 
 .featured-articles {
-  background-image: var(--article-bg-image);
+  background: transparent;
   background-size: cover;
   background-position: center 30%;
-  background-attachment: fixed;
   position: relative;
   padding: 60px 20px;
   overflow: hidden;
@@ -575,7 +675,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(3px);
   z-index: 0;
 }
 
@@ -592,15 +693,15 @@
 .featured-article {
   display: grid;
   grid-template-columns: 38.2fr 61.8fr;
-  background: rgba(var(--bg-primary-rgb), 0.3);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border-radius: 12px;
   overflow: hidden;
   position: relative;
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease;
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.1),
+    0 4px 20px rgba(0, 0, 0, 0.2),
     inset 0 0 0 1px rgba(255, 255, 255, 0.2);
   transform-style: preserve-3d;
   perspective: 1000px;
@@ -632,10 +733,10 @@
 
 /* 暗色主题样式 */
 .dark-theme .featured-article {
-  background: rgba(var(--bg-primary-rgb), 0.2);
+  background: rgba(0, 0, 0, 0.4);
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+    0 4px 20px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .dark-theme .featured-article:hover {
@@ -644,7 +745,7 @@
     0 0 10px rgba(135, 206, 235, 0.1),
     0 0 5px rgba(135, 206, 235, 0.05),
     inset 0 0 0 1px rgba(135, 206, 235, 0.3);
-  background: rgba(var(--bg-primary-rgb), 0.25);
+  background: rgba(0, 0, 0, 0.5);
   transform: translateY(-2px);
 }
 
@@ -744,18 +845,18 @@
 
 .article-title {
   font-size: 1.8rem;
-  color: var(--text-primary);
+  color: white;
   margin-bottom: 15px;
   line-height: 1.3;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 .article-summary {
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.9);
   opacity: 0.9;
   margin-bottom: auto;
   line-height: 1.6;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .article-footer {
@@ -926,11 +1027,14 @@
 /* 用户卡片样式 */
 .user-card {
   background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border-radius: 12px;
   padding: 20px;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
 }
 
 .user-avatar {
@@ -950,8 +1054,9 @@
 
 .username {
   font-size: 1.5rem;
-  color: var(--text-primary);
+  color: white;
   margin-bottom: 15px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .user-stats {
@@ -970,13 +1075,12 @@
 .number {
   font-size: 1.2rem;
   font-weight: bold;
-  color: var(--text-primary);
+  color: white;
 }
 
 .label {
   font-size: 0.9rem;
-  color: var(--text-primary);
-  opacity: 0.8;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .follow-btn {
@@ -998,12 +1102,26 @@
 
 .search-box input {
   width: calc(100% - 0px);
-  padding: 10px 40px 10px 15px;
+  padding: 12px 40px 12px 15px;
   border: none;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  color: var(--text-primary);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(135, 206, 235, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.search-box input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .search-icon {
@@ -1011,7 +1129,7 @@
   right: 15px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.7);
   opacity: 0.7;
   font-size: 1.2rem;
   cursor: pointer;
@@ -1066,12 +1184,202 @@
   background: linear-gradient(135deg, #87CEEB, #4169E1); /* 天蓝色到皇家蓝 */
 }
 
+.friend-links{
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  color: white;
+  margin-top: 20px;
+}
+
+.car{
+  /* margin-top: -100px; */
+}
+
+.car-container {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+  overflow: hidden;
+}
+
+.car {
+  max-width: 100%;
+  height: auto;
+}
+
+.home-friends-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.home-friend-card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  aspect-ratio: 1/1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.home-friend-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.7));
+  z-index: 1;
+}
+
+.home-friend-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  border-color: rgba(135, 206, 235, 0.3);
+}
+
+.home-friend-card:hover::before {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.8));
+}
+
+.friend-avatar-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.friend-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: all 0.3s ease;
+}
+
+.home-friend-card:hover .friend-avatar {
+  transform: scale(1.05);
+}
+
+.friend-info {
+  padding: 15px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.friend-name {
+  font-size: 1.1rem;
+  margin: 0;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.friend-desc {
+  font-size: 0.8rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.view-more-friends {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.more-friends-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #87CEEB;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.more-friends-link:hover {
+  gap: 8px;
+  color: white;
+}
+
+@media (max-width: 480px) {
+  .home-friends-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .home-friend-card {
+    aspect-ratio: auto;
+    height: 100px;
+    flex-direction: row;
+  }
+  
+  .friend-avatar-container {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .friend-info {
+    text-align: left;
+    margin-left: 15px;
+    justify-content: center;
+  }
+}
+
 /* 最新文章列表样式 */
 .recent-posts {
   background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border-radius: 12px;
   padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  color: white;
+}
+
+.section-title {
+  font-size: 1.3rem;
+  color: white;
+  margin-bottom: 1rem;
+  position: relative;
+  display: inline-block;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #87CEEB;
+  transition: width 0.3s ease;
+}
+
+.recent-posts:hover .section-title::after {
+  width: 100%;
 }
 
 .post-item {
@@ -1079,6 +1387,16 @@
   gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  color: inherit;
+  text-decoration: none;
+}
+
+.post-item:hover {
+  transform: translateX(5px);
+  background: rgba(135, 206, 235, 0.1);
+  border-radius: 6px;
+  padding-left: 8px;
 }
 
 .post-thumb {
@@ -1104,6 +1422,32 @@
   opacity: 0.7;
 }
 
+/* 最新文章加载和空状态样式 */
+.post-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.mini-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(135, 206, 235, 0.2);
+  border-top: 2px solid #87CEEB;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.post-empty {
+  text-align: center;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+}
+
 /* 响应式设计 */
 @media (max-width: 1024px) {
   .page-container {
@@ -1125,7 +1469,7 @@
 .user-card,
 .recent-posts,
 .featured-article {
-  background: var(--card-bg-light);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: var(--card-border-light);
@@ -1134,7 +1478,7 @@
 
 /* 搜索框特殊样式 */
 .search-box input {
-  background: var(--card-bg-light);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: var(--card-border-light);
@@ -1144,14 +1488,17 @@
 /* 暗色主题适配 */
 .dark-theme .user-card,
 .dark-theme .recent-posts,
-.dark-theme .featured-article {
-  background: var(--card-bg-dark);
+.dark-theme .featured-article,
+.dark-theme .friend-links,
+.dark-theme .latest-whispers {
+  background: rgba(20, 20, 20, 0.6);
   border: var(--card-border-dark);
   box-shadow: var(--card-shadow-dark);
 }
 
 .dark-theme .search-box input {
-  background: var(--card-bg-dark);
+  background: rgba(20, 20, 20, 0.6);
+  /* background: var(--card-bg-dark); */
   border: var(--card-border-dark);
   box-shadow: var(--card-shadow-dark);
 }
@@ -1189,13 +1536,13 @@
 
 /* 音乐播放器样式 */
 .music-player {
-  background: rgba(20, 20, 20, 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(20, 20, 20, 0.6);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border: 1px solid rgba(135, 206, 235, 0.2);
   box-shadow: 
-    0 4px 15px rgba(0, 0, 0, 0.3),
-    0 0 10px rgba(135, 206, 235, 0.1);
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    0 0 15px rgba(135, 206, 235, 0.1);
   border-radius: 12px;
   padding: 20px;
   width: 100%;
@@ -1654,7 +2001,7 @@
 
 /* 暗色主题强制覆盖 */
 .dark-theme .music-player {
-  background: rgba(20, 20, 20, 0.8);
+  background: rgba(20, 20, 20, 0.6);
   border: 1px solid rgba(135, 206, 235, 0.2);
   color: rgba(255, 255, 255, 0.9);
 }
@@ -1971,16 +2318,102 @@
     0 0 10px rgba(135, 206, 235, 0.1);
 }
 
+/* 加载和空状态样式 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  padding: 60px 20px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(135, 206, 235, 0.2);
+  border-top: 3px solid #87CEEB;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  padding: 60px 20px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  opacity: 0.6;
+}
+
+.empty-text {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.1rem;
+}
+
+.api-hint {
+  font-size: 0.9rem;
+  color: rgba(255, 193, 7, 0.8);
+  background: rgba(255, 193, 7, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  border: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+/* 暗色主题适配 */
+.dark-theme .loading-state,
+.dark-theme .empty-state {
+  background: rgba(20, 20, 20, 0.6);
+  border: 1px solid rgba(135, 206, 235, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .loading-spinner {
+  border-color: rgba(135, 206, 235, 0.3);
+  border-top-color: #87CEEB;
+}
+
 /* 最新树洞样式 */
 .latest-whispers {
-  background: var(--card-bg-light);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: var(--card-border-light);
-  box-shadow: var(--card-shadow-light);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   border-radius: 12px;
   padding: 20px;
   margin-top: 20px;
+  color: white;
 }
 
 .whispers-list {
@@ -1991,13 +2424,14 @@
 }
 
 .whisper-item {
-  background: rgba(135, 206, 235, 0.05);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   padding: 12px;
   transition: all 0.3s ease;
   position: relative;
   border: 1px solid rgba(135, 206, 235, 0.1);
   backdrop-filter: blur(5px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .whisper-item.new::before {
@@ -2016,15 +2450,15 @@
 
 .whisper-item:hover {
   transform: translateY(-2px);
-  background: rgba(135, 206, 235, 0.1);
+  background: rgba(0, 0, 0, 0.3);
   border-color: rgba(135, 206, 235, 0.2);
   box-shadow: 
-    0 4px 12px rgba(135, 206, 235, 0.1),
-    0 0 8px rgba(135, 206, 235, 0.05);
+    0 4px 15px rgba(0, 0, 0, 0.2),
+    0 0 10px rgba(135, 206, 235, 0.1);
 }
 
 .whisper-content {
-  color: var(--text-color);
+  color: white;
   font-size: 0.9rem;
   line-height: 1.5;
   margin-bottom: 8px;
@@ -2035,55 +2469,19 @@
   justify-content: space-between;
   align-items: center;
   font-size: 0.8rem;
-  color: var(--text-color);
-  opacity: 0.8;
-}
-
-.whisper-stats {
-  display: flex;
-  gap: 12px;
-}
-
-.whisper-stats .stat {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.whisper-stats .stat:hover {
-  color: #87CEEB;
-  text-shadow: 0 0 8px rgba(135, 206, 235, 0.4);
-}
-
-/* 暗色主题适配 */
-.dark-theme .latest-whispers {
-  background: var(--card-bg-dark);
-  border: var(--card-border-dark);
-  box-shadow: var(--card-shadow-dark);
-}
-
-.dark-theme .whisper-item {
-  background: rgba(0, 0, 0, 0.2);
-  border-color: rgba(135, 206, 235, 0.1);
-}
-
-.dark-theme .whisper-item:hover {
-  background: rgba(135, 206, 235, 0.1);
-  border-color: rgba(135, 206, 235, 0.2);
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.2),
-    0 0 8px rgba(135, 206, 235, 0.1);
+  color: rgba(255, 255, 255, 0.7);
 }
 </style>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import Banner from '../components/Banner.vue'
 import { Icon } from '@iconify/vue'
 import { useMusicStore } from '../stores/music'
 import { useDark } from '@vueuse/core'
+import { config } from '../config/index'
+import { getRecentArticles, type Article } from '../services/article'
+import { formatDate } from '../utils/formatDate'
 
 const articleRefs = ref<HTMLElement[]>([])
 const musicStore = useMusicStore()
@@ -2100,6 +2498,8 @@ const isDark = useDark({
   valueDark: 'dark-theme',
   valueLight: ''
 })
+
+
 
 const handleMouseMove = (e: MouseEvent) => {
   const target = e.currentTarget as HTMLElement
@@ -2126,57 +2526,13 @@ const handleMouseLeave = (e: MouseEvent) => {
   }, 500)
 }
 
-const featuredArticles = ref([
-  {
-    id: 1,
-    title: '探索 Vue 3 组合式 API 的最佳实践',
-    summary: '组合式 API 是 Vue 3 中最重要的特性之一，它为我们提供了更好的代码组织方式和逻辑复用能力...',
-    cover: '/articles/cover/1.jpg',
-    date: '2024-03-21',
-    category: '前端开发',
-    tags: ['Vue3', 'JavaScript', '最佳实践']
-  },
-  {
-    id: 2,
-    title: '使用 TypeScript 提升代码质量',
-    summary: 'TypeScript 作为 JavaScript 的超集，为我们带来了类型安全和更好的开发体验...',
-    cover: '/articles/cover/2.jpg',
-    date: '2024-03-20',
-    category: '编程语言',
-    tags: ['TypeScript', '最佳实践', '代码质量']
-  },
-  {
-    id: 3,
-    title: '深入理解 CSS Grid 布局',
-    summary: 'CSS Grid 布局是一个强大的二维布局系统，它彻底改变了我们设计网页布局的方式...',
-    cover: '/articles/cover/3.jpg',
-    date: '2024-03-19',
-    category: '前端开发',
-    tags: ['CSS', 'Web设计', '响应式']
-  }
-])
+// 文章数据和加载状态
+const featuredArticles = ref<Article[]>([])
+const isLoadingArticles = ref(true)
 
-// 添加最新文章数据
-const recentPosts = ref([
-  {
-    id: 1,
-    title: 'Dansela - 文档色彩与网站美化',
-    cover: '/articles/cover/1.jpg',
-    date: '2024-06-04'
-  },
-  {
-    id: 2,
-    title: 'Dansela - 部署文档',
-    cover: '/articles/cover/2.jpg',
-    date: '2022-12-26'
-  },
-  {
-    id: 3,
-    title: 'Dansela - 完整版',
-    cover: '/articles/cover/3.jpg',
-    date: '2022-03-03'
-  }
-])
+// 最新文章数据
+const recentPosts = ref<Article[]>([])
+const isLoadingRecentPosts = ref(true)
 
 // 在播放按钮点击事件中使用
 const handlePlayClick = () => {
@@ -2416,4 +2772,140 @@ const latestWhispers = ref([
     isNew: false
   }
 ])
+
+// 添加视差效果处理函数
+const handleParallax = (e: MouseEvent) => {
+  const video = document.querySelector('.background-video') as HTMLElement;
+  if (!video) return;
+  
+  // 计算鼠标位置相对于窗口中心的偏移百分比
+  const mouseX = e.clientX / window.innerWidth - 0.5; // -0.5 到 0.5 之间
+  const mouseY = e.clientY / window.innerHeight - 0.5; // -0.5 到 0.5 之间
+  
+  // 计算视频位移，乘以一个小系数使得移动效果轻微
+  const moveX = -(mouseX * 200); // 水平方向移动系数
+  const moveY = -(mouseY * 200); // 垂直方向移动系数
+  
+  // 应用变换，包括初始的居中和缩放
+  video.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px)) scale(1.1)`;
+}
+
+// 在组件挂载时添加鼠标移动事件监听
+onMounted(() => {
+  checkMarquee();
+  window.addEventListener('resize', checkMarquee);
+  
+  // 添加视差效果的事件监听
+  window.addEventListener('mousemove', handleParallax);
+  
+  // 每5秒切换一次文本
+  setInterval(switchText, 5000);
+  
+  // 设置主题监听
+  const cleanupThemeListener = setupThemeListener()
+  
+  // 获取文章和友链数据
+  fetchFeaturedArticles();
+  fetchRecentPosts();
+  fetchTopFriends();
+});
+
+// 在组件卸载时移除事件监听
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMarquee);
+  window.removeEventListener('mousemove', handleParallax);
+  
+  // 移除主题变化监听器在此处应该也被清理
+  const cleanupThemeListener = setupThemeListener()
+  cleanupThemeListener()
+});
+
+// 友链相关
+// 定义友链类型
+interface FriendLink {
+  name: string;
+  avatar: string;
+  url: string;
+  description: string;
+  category?: string;
+  cover?: string;
+}
+
+const topFriends = ref<FriendLink[]>([]);
+
+// 获取特色文章数据
+const fetchFeaturedArticles = async () => {
+  try {
+    isLoadingArticles.value = true
+    const articles = await getRecentArticles(3) // 获取最新3篇文章作为特色文章
+    featuredArticles.value = articles
+    console.log('特色文章加载成功:', articles.length)
+  } catch (error) {
+    console.error('加载特色文章失败:', error)
+    featuredArticles.value = []
+  } finally {
+    isLoadingArticles.value = false
+  }
+}
+
+// 获取最新文章数据（侧边栏显示）
+const fetchRecentPosts = async () => {
+  try {
+    isLoadingRecentPosts.value = true
+    const articles = await getRecentArticles(3) // 获取最新3篇文章
+    recentPosts.value = articles
+    console.log('最新文章加载成功:', articles.length)
+  } catch (error) {
+    console.error('加载最新文章失败:', error)
+    recentPosts.value = []
+  } finally {
+    isLoadingRecentPosts.value = false
+  }
+}
+
+// 获取友链数据
+const fetchTopFriends = async () => {
+  try {
+    const response = await fetch(`${config.api.apiUrl}/friend-links`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error('获取友链失败:', response.status);
+      return;
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // 只展示3个友链
+      topFriends.value = data.data.friends.slice(0, 3);
+    }
+  } catch (error) {
+    console.error('获取友链出错:', error);
+  }
+};
+
+// 打开友链
+const openFriendLink = (url: string) => {
+  const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+  window.open(fullUrl, '_blank', 'noopener noreferrer');
+};
+
+// 监听主题变化事件
+const setupThemeListener = () => {
+  const handleThemeChange = () => {
+    // 重新计算依赖isDark的计算属性
+    checkMarquee()
+  }
+  
+  document.addEventListener('themeChange', handleThemeChange)
+  
+  return () => {
+    document.removeEventListener('themeChange', handleThemeChange)
+  }
+}
 </script> 

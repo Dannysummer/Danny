@@ -655,6 +655,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { type BulletChat as ImportedBulletChat, getBulletChatsByStatus, updateBulletChat as updateBulletChatAPI, deleteBulletChat } from '../../data/bulletChats'
+import { config } from '../../config/index'
 
 // 消息类型接口
 interface User {
@@ -828,8 +829,8 @@ const sendReply = async () => {
     const isComment = 'article' in currentMessage.value
     
     const url = isComment 
-      ? `http://localhost:8088/api/comments/${currentMessage.value.id}/reply`
-      : `http://localhost:8088/api/messages/${currentMessage.value.id}/reply`
+      ? `${config.api.apiUrl}/comments/${currentMessage.value.id}/reply`
+      : `${config.api.apiUrl}/messages/${currentMessage.value.id}/reply`
     
     const response = await fetch(url, {
       method: 'POST',
@@ -875,13 +876,13 @@ const deleteMessage = async () => {
     
     switch (messageTypeToDelete.value) {
       case 'comment':
-        url = `http://localhost:8088/api/comments/${messageToDelete.value.id}`
+        url = `${config.api.apiUrl}/comments/${messageToDelete.value.id}`
         break
       case 'message':
-        url = `http://localhost:8088/api/messages/${messageToDelete.value.id}`
+        url = `${config.api.apiUrl}/messages/${messageToDelete.value.id}`
         break
       case 'notification':
-        url = `http://localhost:8088/api/notifications/${messageToDelete.value.id}`
+        url = `${config.api.apiUrl}/notifications/${messageToDelete.value.id}`
         break
       case 'bullet':
         success = await deleteBulletChat(messageToDelete.value.bulletId)
@@ -926,7 +927,7 @@ const deleteMessage = async () => {
 // 标记通知为已读
 const markAsRead = async (notification: Notification) => {
   try {
-    const response = await fetch(`http://localhost:8088/api/notifications/${notification.id}/read`, {
+    const response = await fetch(`${config.api.apiUrl}/notifications/${notification.id}/read`, {
       method: 'PUT',
       credentials: 'include'
     })
@@ -951,7 +952,7 @@ const fetchMessages = async () => {
   
   try {
     // 获取评论
-    const commentsResponse = await fetch('http://localhost:8088/api/comments', {
+    const commentsResponse = await fetch(`${config.api.apiUrl}/comments`, {
       credentials: 'include'
     })
     const commentsData = await commentsResponse.json()
@@ -961,7 +962,7 @@ const fetchMessages = async () => {
     }
     
     // 获取留言板消息
-    const messagesResponse = await fetch('http://localhost:8088/api/messages', {
+    const messagesResponse = await fetch(`${config.api.apiUrl}/messages`, {
       credentials: 'include'
     })
     const messagesData = await messagesResponse.json()
@@ -971,7 +972,7 @@ const fetchMessages = async () => {
     }
     
     // 获取通知
-    const notificationsResponse = await fetch('http://localhost:8088/api/notifications', {
+    const notificationsResponse = await fetch(`${config.api.apiUrl}/notifications`, {
       credentials: 'include'
     })
     const notificationsData = await notificationsResponse.json()
@@ -1052,7 +1053,7 @@ const confirmDeleteBullet = (bullet: BulletChat) => {
 // 添加新弹幕
 const addBulletChat = async () => {
   try {
-    const response = await fetch('http://localhost:8088/api/bullet-chats', {
+    const response = await fetch(`${config.api.apiUrl}/bullet-chats`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1125,7 +1126,7 @@ const fetchBulletChats = async () => {
   try {
     if (bulletChatStatusFilter.value === 'all') {
       // 获取所有弹幕
-      const response = await fetch('http://localhost:8088/api/bullet-chats', {
+      const response = await fetch(`${config.api.apiUrl}/bullet-chats`, {
         credentials: 'include'
       })
       const data = await response.json()

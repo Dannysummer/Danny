@@ -80,6 +80,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { config } from '../../config/index'
 
 const router = useRouter();
 const route = useRoute();
@@ -148,7 +149,7 @@ const loadArticle = async () => {
     isLoading.value = true;
     
     // 从后端API获取文章数据
-    const API_BASE_URL = 'http://localhost:8088/api';
+    const API_BASE_URL = config.api.apiUrl;
     const response = await fetch(`${API_BASE_URL}/article/${articleId.value}`, {
       credentials: 'include',
       headers: {

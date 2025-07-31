@@ -1,5 +1,5 @@
 <template>
-  <div class="start-page" :class="{ 'search-focused': isSearchFocused }" :style="{ '--bg-image': `url(${backgroundImage})` }">
+  <div class="start-page" :class="{ 'search-focused': isSearchFocused }" :style="{ '--bg-image': `url(${backgroundImage})` }" @contextmenu.prevent="showContextMenu">
     <!-- 使用 ParticlesBackground 组件 -->
     <ParticlesBackground v-if="wallpaperSettings.showParticles" />
     <!-- 模糊遮罩 -->
@@ -10,6 +10,11 @@
         {{ greeting }}
       </div>
     </Transition>
+
+    <!-- 添加设置按钮 -->
+    <div class="settings-button" @click="showSettings = true">
+      <Icon icon="material-symbols:settings" />
+    </div>
 
     <div class="search-container" :class="{ 'focused': isSearchFocused }">       
       <!-- 时钟和日历 -->
@@ -337,13 +342,23 @@
         </div>
       </div>
     </div>
+
+    <!-- 右键菜单组件 -->
+    <ContextMenu 
+      :visible="showContextMenuPanel" 
+      :position="contextMenuPosition"
+      :menuItems="contextMenuItems"
+      @close="closeContextMenu"
+      @item-click="handleContextMenuItem"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch} from 'vue'
+import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
 import { Icon } from '@iconify/vue'
 import ParticlesBackground from '../components/ParticlesBackground.vue'
+import ContextMenu from '../components/ContextMenu.vue'
 
 const searchQuery = ref('')
 const searchInput = ref<HTMLInputElement | null>(null)
@@ -809,6 +824,67 @@ const getGreeting = () => {
 
 // 添加问候语的响应式引用
 const greeting = ref(getGreeting())
+
+// 右键菜单相关
+const showContextMenuPanel = ref(false)
+const contextMenuPosition = ref({ x: 0, y: 0 })
+
+// 切换壁纸
+const toggleWallpaper = () => {
+  const wallpaperTypes = ['startBg', 'bing', 'landscape', 'anime', 'cover', 'website']
+  const currentIndex = wallpaperTypes.indexOf(wallpaperSettings.value.type)
+  const nextIndex = (currentIndex + 1) % wallpaperTypes.length
+  wallpaperSettings.value.type = wallpaperTypes[nextIndex] as any
+  localStorage.setItem('startPageSettings', JSON.stringify({
+    wallpaper: wallpaperSettings.value,
+    search: searchSettings.value,
+    time: timeSettings.value,
+    quickLink: quickLinkSettings.value
+  }))
+  window.location.reload()
+}
+
+// 右键菜单项定义
+const contextMenuItems = [
+  {
+    label: '设置',
+    icon: 'material-symbols:settings',
+    action: () => { showSettings.value = true }
+  },
+  {
+    label: '刷新页面',
+    icon: 'material-symbols:refresh',
+    action: () => { window.location.reload() }
+  },
+  {
+    label: '更换壁纸',
+    icon: 'material-symbols:wallpaper',
+    action: toggleWallpaper
+  }
+]
+
+// 显示右键菜单
+const showContextMenu = (event: MouseEvent) => {
+  // 设置菜单位置
+  contextMenuPosition.value = {
+    x: event.clientX,
+    y: event.clientY
+  }
+  
+  // 显示自定义菜单
+  showContextMenuPanel.value = true
+}
+
+// 关闭右键菜单
+const closeContextMenu = () => {
+  showContextMenuPanel.value = false
+}
+
+// 处理右键菜单项点击
+const handleContextMenuItem = (item: any) => {
+  // 这里可以根据需要处理菜单项点击事件
+  // 目前由各菜单项的action处理，所以这里暂不需要额外逻辑
+}
 </script>
 
 <style scoped>
@@ -1863,5 +1939,36 @@ input:checked + .toggle-slider:before {
     transform: translate(-50%, -150%);  /* 消失时往上移动更多 */
     opacity: 0;
   }
+}
+
+/* 添加设置按钮样式 */
+.settings-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.6;
+}
+
+.settings-button:hover {
+  opacity: 1;
+  transform: rotate(30deg) scale(1.1);
+  background: rgba(135, 206, 235, 0.2);
+  box-shadow: 0 0 15px rgba(135, 206, 235, 0.3);
+}
+
+.settings-button .iconify {
+  font-size: 1.5rem;
 }
 </style> 

@@ -168,12 +168,12 @@ onUnmounted(() => {
   font-size: 0.9rem;
   opacity: 0.9;
   line-height: 1.6;
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
 }
 
 .text-line {
   margin: 5px 0;
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
 }
 
 .text-line:first-child {
@@ -232,7 +232,7 @@ onUnmounted(() => {
 
 /* 添加运行时间样式 */
 .runtime {
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
   margin: 10px 0;
   color: #fff;
   font-size: 0.95rem;
@@ -245,7 +245,7 @@ onUnmounted(() => {
   margin: 0 2px;
   color: #87CEEB;
   font-weight: bold;
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
   text-shadow: 
     0 0 5px rgba(135, 206, 235, 0.5),
     0 0 10px rgba(135, 206, 235, 0.3);
@@ -275,7 +275,7 @@ onUnmounted(() => {
   position: absolute;
   width: 100%;
   transition: all 0.5s ease;
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
 }
 
 /* 轮播动画 */

@@ -78,7 +78,7 @@ import ScrollToPlugin from 'gsap/ScrollToPlugin'
 import ImgBg from '../../components/ImgBg.vue'
 import AlbumCollectionsBtn from '../../components/AlbumCollectionsBtn.vue'
 import AlbumCollectionsShow from '../../components/AlbumCollectionsShow.vue'
-import type { ImgBgRow } from '../../types/imgbg'
+import type { ImgBgRow } from '../../types'
 import { useDark } from '@vueuse/core'
 import type { AlbumImage } from '../../data/albumImages'
 

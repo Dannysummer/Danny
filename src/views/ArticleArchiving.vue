@@ -36,14 +36,31 @@
           <div class="timeline-container">
             <transition name="fade" mode="out-in">
               <div v-if="currentTab === 'time'" class="timeline-container">
-                <div class="timeline-header">
-                  <Icon icon="mdi:text-box-multiple" class="header-icon" />
-                  <span class="header-text">全部文章 - 
-                    <span class="article-count" ref="countEl">
-                      {{ currentCount }}
-                    </span>
-                  </span>
+                <!-- 加载状态 -->
+                <div v-if="isLoading" class="loading-state">
+                  <div class="loading-spinner"></div>
+                  <p>正在加载文章数据...</p>
                 </div>
+                
+                <!-- 空状态 -->
+                <div v-else-if="archiveData.length === 0" class="empty-state">
+                  <div class="empty-icon">📝</div>
+                  <h3>暂无文章数据</h3>
+                  <p>API接口未实现或返回空数据</p>
+                  <p class="api-hint">请实现: <code>GET /api/articles/archive</code></p>
+                  <p class="doc-link">详见: <a href="/src/docs/api-interfaces-required.md" target="_blank">API接口文档</a></p>
+                </div>
+                
+                <!-- 正常内容 -->
+                <template v-else>
+                  <div class="timeline-header">
+                    <Icon icon="mdi:text-box-multiple" class="header-icon" />
+                    <span class="header-text">全部文章 - 
+                      <span class="article-count" ref="countEl">
+                        {{ currentCount }}
+                      </span>
+                    </span>
+                  </div>
                 <div class="year-filter">
                   <button 
                     class="all-articles-btn"
@@ -56,7 +73,7 @@
                   <div class="year-selector"
                       ref="yearSelector"
                       @mousedown="startYearDrag"
-                      @touchstart="startYearDrag"
+                      @touchstart.passive="startYearDrag"
                       @mousemove="dragYear"
                       @touchmove="dragYear"
                       @mouseup="stopYearDrag"
@@ -91,7 +108,7 @@
                               <div class="article-info">
                                 <div class="article-date">
                                   <Icon icon="mdi:calendar" />
-                                  {{ article.createTime }}
+                                  {{ formatDate(article.createTime) }}
                                 </div>
                                 <h3 class="article-title">{{ article.title }}</h3>
                               </div>
@@ -112,7 +129,7 @@
                             <div class="article-info">
                               <div class="article-date">
                                 <Icon icon="mdi:calendar" />
-                                {{ article.createTime }}
+                                {{ formatDate(article.createTime) }}
                               </div>
                               <h3 class="article-title">{{ article.title }}</h3>
                             </div>
@@ -153,6 +170,7 @@
                     <Icon icon="mdi:chevron-right" />
                   </button>
                 </div>
+                </template>
               </div>
               
               <div v-else-if="currentTab === 'tags'" class="timeline-container">
@@ -185,7 +203,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRouter } from 'vue-router'
-import { timelineData, type Article } from '../data/articles'
+import { getArticleArchive, type Article, type ArchiveData } from '../services/article'
+import { formatDate } from '../utils/formatDate'
 import WelcomeBoard from '../components/WelcomeBoard.vue'
 import ProfileCard from '../components/ProfileCard.vue'
 import MyPoetry from '../components/MyPoetry.vue'
@@ -198,6 +217,10 @@ const router = useRouter()
 const currentTab = ref('time')
 const currentCount = ref(0)
 
+// 归档数据
+const archiveData = ref<ArchiveData[]>([])
+const isLoading = ref(true)
+
 const navItems = [
   { key: 'time', text: '时光轴', icon: 'mdi:timeline-clock', count: currentCount },
   { key: 'category', text: '文章分类', icon: 'mdi:folder-multiple', count: 12 },
@@ -205,7 +228,10 @@ const navItems = [
   { key: 'archive', text: '文章归档', icon: 'mdi:archive', count: 15 }
 ]
 
-const targetCount = timelineData.reduce((sum, year) => sum + year.articles.length, 0)
+// 计算文章总数
+const targetCount = computed(() => {
+  return archiveData.value.reduce((sum, year) => sum + year.articles.length, 0)
+})
 
 const currentPage = ref(1)
 const pageSize = 10 // 每页显示的文章数
@@ -218,8 +244,8 @@ const totalPages = computed(() => {
 
 // 年份选择器相关
 const yearOptions = computed(() => {
-  const years = timelineData.map(item => item.year)
-  const sortedYears = years.sort((a, b) => Number(b) - Number(a))
+  const years = archiveData.value.map((item: ArchiveData) => item.year)
+  const sortedYears = years.sort((a: string, b: string) => Number(b) - Number(a))
   return sortedYears.length > 0 ? sortedYears : ['—']
 })
 
@@ -311,9 +337,9 @@ const handleMouseLeave = () => {
 // 修改文章数据过滤逻辑
 const filteredData = computed(() => {
   if (selectedYear.value === 'all') {
-    return timelineData
+    return archiveData.value
   }
-  return timelineData.filter(year => year.year === selectedYear.value)
+  return archiveData.value.filter((year: ArchiveData) => year.year === selectedYear.value)
 })
 
 // 在 script 部分添加
@@ -379,11 +405,26 @@ const currentPageData = computed(() => {
   return result
 })
 
+// 加载归档数据
+const loadArchiveData = async () => {
+  try {
+    isLoading.value = true
+    const data = await getArticleArchive()
+    archiveData.value = data
+    console.log('归档数据加载成功:', data.length)
+  } catch (error) {
+    console.error('加载归档数据失败:', error)
+    archiveData.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
 // 数字滚动动画
-onMounted(() => {
+const startCountAnimation = () => {
   const duration = 1000
   const start = 0
-  const end = targetCount
+  const end = targetCount.value
   const startTime = performance.now()
 
   function updateCount(currentTime: number) {
@@ -398,7 +439,16 @@ onMounted(() => {
   }
 
   requestAnimationFrame(updateCount)
+}
 
+// 组件挂载时加载数据
+onMounted(async () => {
+  await loadArchiveData()
+  // 数据加载完成后开始计数动画
+  if (targetCount.value > 0) {
+    startCountAnimation()
+  }
+  
   // 初始化时居中当前选中的年份
   if (yearSelector.value) {
     const carousel = yearSelector.value.querySelector('.year-carousel') as HTMLElement
@@ -425,10 +475,10 @@ const tagsList = computed(() => {
   const tagsMap = new Map()
   
   // 从文章数据中统计标签
-  timelineData.forEach(year => {
-    year.articles.forEach(article => {
+  archiveData.value.forEach((year: ArchiveData) => {
+    year.articles.forEach((article: Article) => {
       if (article.tags) {
-        article.tags.forEach(tag => {
+        article.tags.forEach((tag: string) => {
           const count = tagsMap.get(tag) || 0
           tagsMap.set(tag, count + 1)
         })
@@ -453,8 +503,8 @@ const handleTagSelect = (tag: string) => {
 const categoryData = computed(() => {
   const categoryMap = new Map()
   
-  timelineData.forEach(year => {
-    year.articles.forEach(article => {
+  archiveData.value.forEach((year: ArchiveData) => {
+    year.articles.forEach((article: Article) => {
       // 这里假设每篇文章都有一个category属性，如果没有可以根据实际情况调整
       const category = article.category || '未分类'
       const count = categoryMap.get(category) || 0
@@ -472,8 +522,8 @@ const categoryData = computed(() => {
 const monthlyData = computed(() => {
   const monthMap = new Map()
   
-  timelineData.forEach(year => {
-    year.articles.forEach(article => {
+  archiveData.value.forEach((year: ArchiveData) => {
+    year.articles.forEach((article: Article) => {
       const month = article.createTime.substring(0, 7) // 获取 YYYY-MM
       const count = monthMap.get(month) || 0
       monthMap.set(month, count + 1)
@@ -1165,5 +1215,86 @@ html.dark-theme .page-number.active {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+/* 加载状态样式 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #fff;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(52, 152, 219, 0.2);
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #fff;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  opacity: 0.6;
+}
+
+.empty-state h3 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.empty-state p {
+  margin-bottom: 8px;
+  opacity: 0.8;
+  line-height: 1.6;
+}
+
+.api-hint {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 16px 0;
+  color: #ffc107;
+}
+
+.api-hint code {
+  background: rgba(255, 193, 7, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Fira Code', monospace;
+}
+
+.doc-link a {
+  color: #3498db;
+  text-decoration: underline;
+  transition: color 0.3s ease;
+}
+
+.doc-link a:hover {
+  color: #5dade2;
 }
 </style> 

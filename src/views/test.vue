@@ -20,7 +20,7 @@
 
 <script setup lang="ts">
 import ImgBg from '../components/ImgBg.vue'
-import type { ImgBgRow } from '../types/imgbg'
+import type { ImgBgRow } from '../types'
 
 // 测试图片数据
 const imageRows: ImgBgRow[] = [

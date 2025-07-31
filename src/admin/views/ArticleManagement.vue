@@ -71,7 +71,9 @@
             <th>创建时间</th>
             <th>更新时间</th>
             <th>状态</th>
+            <th>分类</th>
             <th>标签</th>
+            <th>阅读量</th>
             <th>文件链接</th>
             <th>操作</th>
           </tr>
@@ -123,6 +125,9 @@
                 </div>
               </div>
             </td>
+            <td>
+              {{ article.category || '无分类' }}
+            </td>
             <td class="tags-col">
               <div class="article-tags" v-if="article.tagArray && article.tagArray.length">
                 <span class="tag" v-for="tag in article.tagArray" :key="tag">{{ tag }}</span>
@@ -131,6 +136,9 @@
                 <span class="tag" v-for="tag in article.tags.split(',')" :key="tag">{{ tag }}</span>
               </div>
               <span class="no-tags" v-else>无标签</span>
+            </td>
+            <td>
+              {{ article.views || 0 }}
             </td>
             <td>
               <a :href="article.fileUrl" target="_blank" class="file-link" v-if="article.fileUrl">
@@ -161,7 +169,7 @@
           
           <!-- 空状态 -->
           <tr v-if="paginatedArticles.length === 0">
-            <td colspan="8" class="empty-state">
+            <td colspan="10" class="empty-state">
               <div v-if="isLoading">
                 <Icon icon="mdi:loading" class="loading-icon spin" />
                 <p>加载中...</p>
@@ -373,23 +381,34 @@ const Stomp = window.Stomp;
 import { useUserStore } from '@/stores/user';
 // 导入消息通知组件
 import MessageNotification from '@/components/MessageNotification.vue';
+import { config } from '../../config/index'
 
 interface Article {
   id: number;
   title: string;
+  content?: string;
+  author?: string;
+  status: string; // DRAFT | PUBLISHED
+  category?: string;
+  tags?: string; // 后端返回逗号分隔的字符串
+  tagArray?: string[]; // 前端处理后的数组格式
+  description?: string;
+  cover?: string;
+  license?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createTime?: string; // 兼容前端格式
+  updateTime?: string; // 兼容前端格式
+  views?: number;
+  isFeatured?: boolean;
+  // 兼容旧格式字段
   filepath?: string;
   filesize?: number;
   fileUrl?: string;
   filePath?: string;
   fileSize?: number;
-  status: string; // 修改为更通用的类型
-  category?: string;
-  tags?: string;
-  tagArray?: string[];
-  createdAt?: string;
-  updatedAt?: string;
-  views?: number;
-  isFeatured?: boolean;
+  coverImage?: string;
+  excerpt?: string;
 }
 
 interface CategoryType {
@@ -412,7 +431,7 @@ const router = useRouter();
 const userStore = useUserStore();
 
 // 修改API基础URL
-const API_BASE_URL = 'http://localhost:8088/api';
+const API_BASE_URL = config.api.apiUrl;
 const totalItems = ref(0);
 
 // 状态和变量定义
@@ -628,21 +647,81 @@ const formatFileSize = (bytes?: number): string => {
 const fetchArticles = async () => {
   isLoading.value = true;
   try {
-    const response = await fetch(`${API_BASE_URL}/article/list`, {
+    // 使用后端提供的兼容性接口
+    const params = new URLSearchParams({
+      page: currentPage.value.toString(),
+      limit: perPage.value.toString(),
+      includeAll: 'true'  // 获取当前用户的所有状态文章
+    });
+    
+    const response = await fetch(`${API_BASE_URL}/articles?${params}`, {
       credentials: 'include',
       headers: getAuthHeader()
     });
     
     if (!response.ok) {
-      throw new Error('获取文章列表失败');
+      const errorText = await response.text();
+      console.error(`API调用失败: ${response.status} ${response.statusText}`, errorText);
+      throw new Error(`获取文章列表失败: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
-    articles.value = data.data || [];
-    totalItems.value = data.total || articles.value.length;
+    
+    // 处理新的返回格式
+    if (data.success && data.data) {
+      // 后端返回的新格式
+      articles.value = data.data.content || [];
+      totalItems.value = data.data.total || 0;
+      
+             // 处理数据格式转换
+       articles.value = articles.value.map(article => ({
+         ...article,
+         // 确保状态格式一致
+         status: article.status || 'DRAFT',
+         // 确保时间格式正确
+         createTime: article.createdAt || article.createTime || new Date().toISOString(),
+         updateTime: article.updatedAt || article.updateTime || new Date().toISOString(),
+         // 处理标签格式 - 后端返回逗号分隔的字符串
+         tags: typeof article.tags === 'string' ? article.tags : (article.tags || ''),
+         tagArray: typeof article.tags === 'string' 
+           ? article.tags.split(',').filter(tag => tag.trim())
+           : (article.tagArray || []),
+         // 确保封面图字段
+         coverImage: article.cover || article.coverImage || '',
+         // 确保分类字段
+         category: article.category || '未分类',
+         // 确保描述字段
+         excerpt: article.description || article.excerpt || '',
+         // 确保视图数
+         views: article.views || 0
+       }));
+      
+      console.log('成功获取文章列表:', articles.value.length, '篇文章');
+      console.log('返回数据格式:', {
+        total: totalItems.value,
+        page: data.data.page,
+        limit: data.data.limit,
+        totalPages: data.data.totalPages
+      });
+      
+    } else {
+      throw new Error(data.message || '获取文章列表失败');
+    }
+    
   } catch (error) {
     console.error('获取文章列表失败:', error);
-    showNotification('获取文章列表失败', 'error');
+    showNotification(`获取文章列表失败: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    
+    // 提供具体的错误信息
+    if (error instanceof Error) {
+      if (error.message.includes('401')) {
+        showNotification('请先登录后再查看文章列表', 'warning');
+      } else if (error.message.includes('403')) {
+        showNotification('您没有权限查看文章列表', 'error');
+      } else if (error.message.includes('404')) {
+        showNotification('文章列表接口不存在，请检查后端配置', 'error');
+      }
+    }
   } finally {
     isLoading.value = false;
   }
@@ -792,7 +871,7 @@ const uploadWithProgress = async (file: File, title: string) => {
     
     // 使用SockJS和Stomp连接WebSocket
     if (SockJS && Stomp) {
-      const socket = new SockJS('http://localhost:8088/ws');
+      const socket = new SockJS(config.api.wsUrl);
       stompClient.value = Stomp.over(socket);
       
       // 连接成功后订阅进度通知

@@ -343,6 +343,7 @@ import { useMessage } from '@/stores/message'
 import { useUserStore } from '@/stores/user'
 import SockJS from 'sockjs-client'
 import { Stomp } from '@stomp/stompjs'
+import { config } from '../../config/index'
 
 interface Image {
   id: number
@@ -410,7 +411,7 @@ const fetchImages = async () => {
       params.append('search', searchQuery.value)
     }
     
-    const response = await fetch(`http://localhost:8088/api/images?${params.toString()}`, {
+    const response = await fetch(`${config.api.apiUrl}/images?${params.toString()}`, {
       credentials: 'include',
       headers: {
         'Referer': 'https://www.dannysummer.asia'
@@ -594,7 +595,7 @@ const deleteImage = async () => {
   if (!currentImage.value) return
   
   try {
-    const response = await fetch(`http://localhost:8088/api/images/${currentImage.value.id}`, {
+    const response = await fetch(`${config.api.apiUrl}/images/${currentImage.value.id}`, {
       method: 'DELETE',
       credentials: 'include',
       headers: {
@@ -620,7 +621,7 @@ const deleteImage = async () => {
 // 连接WebSocket
 const connectWebSocket = () => {
   try {
-    const socket = new SockJS('http://localhost:8088/ws')
+    const socket = new SockJS(config.api.wsUrl)
     stompClient.value = Stomp.over(socket)
     
     // 关闭控制台日志
@@ -695,7 +696,7 @@ const uploadImages = async () => {
       if (!stompClient.value || !stompClient.value.connected) {
         const connectPromise = new Promise((resolve, reject) => {
           try {
-            const socket = new SockJS('http://localhost:8088/ws')
+            const socket = new SockJS(config.api.wsUrl)
             stompClient.value = Stomp.over(socket)
             
             // 关闭控制台日志
@@ -771,7 +772,7 @@ const uploadImages = async () => {
           formData.append('customName', uploadForm.value.fileNames[file.name])
         }
         
-        return fetch('http://localhost:8088/api/image/upload-with-progress', {
+        return fetch(`${config.api.apiUrl}/image/upload-with-progress`, {
           method: 'POST',
           credentials: 'include',
           headers: {
@@ -820,7 +821,7 @@ const uploadImages = async () => {
       })
       formData.append('type', uploadForm.value.type)
       
-      const response = await fetch('http://localhost:8088/api/images/upload', {
+      const response = await fetch(`${config.api.apiUrl}/images/upload`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -917,7 +918,7 @@ const batchDeleteImages = async () => {
     
     // 创建所有删除请求的Promise数组
     const deletePromises = selectedImages.value.map(imageId => 
-      fetch(`http://localhost:8088/api/images/${imageId}`, {
+      fetch(`${config.api.apiUrl}/images/${imageId}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
@@ -972,7 +973,7 @@ const renameImage = async () => {
     formData.append('newName', renameForm.value.newName)
     
     // 发送重命名请求
-    const response = await fetch(`http://localhost:8088/api/image/${currentImage.value.id}/rename`, {
+    const response = await fetch(`${config.api.apiUrl}/image/${currentImage.value.id}/rename`, {
       method: 'PUT',
       credentials: 'include',
       headers: {
