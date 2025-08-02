@@ -65,6 +65,15 @@
                   />
                 </div>
                 <div class="form-item">
+                  <label>分类：</label>
+                  <select v-model="formData.category" @click.stop>
+                    <option value="friend">普通朋友</option>
+                    <option value="bigshot">大佬</option>
+                    <option value="close">密友</option>
+                    <option value="tech">技术博客</option>
+                  </select>
+                </div>
+                <div class="form-item">
                   <label>邮箱：</label>
                   <input 
                     type="email" 
@@ -311,7 +320,7 @@ const handleSubmit = async () => {
     
     try {
       const response = await Promise.race([
-        fetch(`${config.api.apiUrl}/friend-links-pending/apply`, {
+        fetch(`${config.api.apiUrl}/friend-links/pending/apply`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -569,6 +578,7 @@ watch(() => userStore.isLoggedIn, (newValue) => {
   transform: translateY(50%);
   position: relative;
   z-index: 2;  /* 确保表单在最上层 */
+  top: -120px;
 }
 
 .form-item {
@@ -646,7 +656,7 @@ watch(() => userStore.isLoggedIn, (newValue) => {
 
 .friend-footer {
   text-align: center;
-  margin-top: 210px;
+  margin-top: 180px;
   padding: 10px;
   display: flex;
   align-items: center;
@@ -858,4 +868,4 @@ watch(() => userStore.isLoggedIn, (newValue) => {
     display: none;
   }
 }
-</style> 
+</style>

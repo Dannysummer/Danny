@@ -530,7 +530,7 @@ const fetchUserInfo = async () => {
 
 .expanded .login-container {
   width: 240px;
-  height: 300px;
+  height: auto;
   border-radius: 15px;
   padding: 20px;
   display: flex;

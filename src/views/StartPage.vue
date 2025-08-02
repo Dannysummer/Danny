@@ -309,7 +309,7 @@
     <div class="more-links-modal" v-if="showMoreLinks" @click.self="showMoreLinks = false">
       <div class="more-links-content">
         <div class="more-links-header">
-          <h3 class="more-Links-title">快速链接</h3>
+          <h3 class="more-links-title">快速链接</h3>
           <button class="close-btn" @click="showMoreLinks = false">
             <Icon icon="material-symbols:close" />
           </button>
@@ -372,6 +372,7 @@ const solarDate = ref('')
 const lunarDate = ref('')
 const currentPeriod = ref('')
 let timer: number
+let weatherTimer: number
 
 // 随机选择背景图片
 const randomBgNumber = computed(() => Math.floor(Math.random() * 9) + 1)
@@ -508,7 +509,7 @@ const weather = ref<WeatherInfo>({
 const fetchWeather = async () => {
   try {
     // 这里需要替换为你的高德 API Key
-    const key = 'your_amap_key'
+    const key = import.meta.env.VITE_AMAP_KEY || 'your_amap_key'
     const city = '440300' // 深圳市的城市编码
     const response = await fetch(
       `https://restapi.amap.com/v3/weather/weatherInfo?key=${key}&city=${city}&extensions=all`
@@ -519,7 +520,7 @@ const fetchWeather = async () => {
       weather.value = {
         temperature: parseInt(live.temperature),
         text: live.weather,
-        icon: getWeatherType(live.weather),
+        icon: getWeatherIcon(getWeatherType(live.weather)),
         warning: live.warning || ''
       }
     }
@@ -717,7 +718,7 @@ onMounted(() => {
   updateDateTime()
   timer = window.setInterval(updateDateTime, 1000)
   fetchWeather()
-  setInterval(fetchWeather, 30 * 60 * 1000)
+  weatherTimer = setInterval(fetchWeather, 30 * 60 * 1000) as unknown as number
   searchInput.value?.focus()
   
   // 延迟3秒显示问候语
@@ -729,6 +730,16 @@ onMounted(() => {
   setTimeout(() => {
     showGreeting.value = false
   }, 7000)  // 3000 + 5000
+})
+
+// 组件卸载时清除定时器
+onBeforeUnmount(() => {
+  if (timer) {
+    clearInterval(timer)
+  }
+  if (weatherTimer) {
+    clearInterval(weatherTimer)
+  }
 })
 
 // 可以添加一个重置设置的功能
@@ -885,6 +896,32 @@ const handleContextMenuItem = (item: any) => {
   // 这里可以根据需要处理菜单项点击事件
   // 目前由各菜单项的action处理，所以这里暂不需要额外逻辑
 }
+
+// 导出供外部调用的函数和变量
+defineExpose({
+  showSettings,
+  toggleWallpaper
+})
+
+// 添加事件监听器
+const handleOpenSettings = () => {
+  showSettings.value = true
+}
+
+const handleToggleWallpaper = () => {
+  toggleWallpaper()
+}
+
+onMounted(() => {
+  window.addEventListener('open-settings', handleOpenSettings)
+  window.addEventListener('toggle-wallpaper', handleToggleWallpaper)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('open-settings', handleOpenSettings)
+  window.removeEventListener('toggle-wallpaper', handleToggleWallpaper)
+})
+
 </script>
 
 <style scoped>
@@ -1944,8 +1981,8 @@ input:checked + .toggle-slider:before {
 /* 添加设置按钮样式 */
 .settings-button {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  bottom: 20px;
+  left: 20px;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -1971,4 +2008,4 @@ input:checked + .toggle-slider:before {
 .settings-button .iconify {
   font-size: 1.5rem;
 }
-</style> 
+</style>

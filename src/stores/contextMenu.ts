@@ -69,14 +69,21 @@ export const useContextMenuStore = defineStore('contextMenu', {
           id: 'settings',
           label: '设置',
           icon: 'mdi:cog',
-          action: undefined,
+          action: () => {
+            // 显示设置面板
+            // This will be updated by the StartPage component when it's mounted
+            window.dispatchEvent(new CustomEvent('open-settings'));
+          },
           divider: true
         },
         {
           id: 'wallpaper',
           label: '更换壁纸',
           icon: 'mdi:image',
-          action: undefined
+          action: () => {
+            // 更换壁纸
+            window.dispatchEvent(new CustomEvent('toggle-wallpaper'));
+          }
         }
       ],
       blogHome: [
@@ -206,4 +213,4 @@ export const useContextMenuStore = defineStore('contextMenu', {
       }
     }
   }
-}) 
+})

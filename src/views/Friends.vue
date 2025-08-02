@@ -1,5 +1,6 @@
 <template>
   <div class="friends-page">
+
     <!-- Banner 区域 -->
     <div class="friends-banner">
       <h1 class="banner-title">友情链接</h1>
@@ -137,6 +138,8 @@
         <HexoLetterhead />
       </div>
     </div>
+
+    <FooterBanner v-if="!$route.meta.hideFooter" />
   </div>
 </template>
 
@@ -147,6 +150,7 @@ import { categoryNames, type FriendLink } from '../data/friends'
 import HexoLetterhead from '../components/HexoLetterhead.vue'
 import { useThemeStore } from '../stores/theme'  // 导入主题store
 import { config } from '../config/index'
+import FooterBanner from '@/components/FooterBanner.vue'
 
 const themeStore = useThemeStore()
 
@@ -395,6 +399,7 @@ const handleCardClick = (url: string) => {
 </script>
 
 <style scoped>
+
 .friends-page {
   min-height: 100vh;
   background: var(--bg-primary);
@@ -449,7 +454,7 @@ const handleCardClick = (url: string) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.3);  /* 黑色遮罩 */
+  background: rgba(0, 0, 0, 0.3); 
   z-index: 0;
 }
 

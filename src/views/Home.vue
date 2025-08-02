@@ -315,6 +315,8 @@
     <div class="mode-toast" v-if="showToast" :class="{ 'show': showToast }">
       {{ toastMessage }}
     </div>
+
+    <FooterBanner v-if="!$route.meta.hideFooter" />
   </div>
 </template>
 
@@ -2510,6 +2512,7 @@ import { useDark } from '@vueuse/core'
 import { config } from '../config/index'
 import { getRecentArticles, type Article } from '../services/article'
 import { formatDate } from '../utils/formatDate'
+import FooterBanner from '@/components/FooterBanner.vue'
 
 const articleRefs = ref<HTMLElement[]>([])
 const musicStore = useMusicStore()

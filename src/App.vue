@@ -148,7 +148,7 @@
       <router-view />
       
       <!-- 添加页脚 Banner -->
-      <FooterBanner v-if="!$route.meta.hideFooter" />
+      <!-- <FooterBanner v-if="!$route.meta.hideFooter" /> -->
       <!-- <UserAvatar v-if="!$route.meta.hideAvatar" /> -->
       <FloatingLogin v-if="!$route.meta.hideLogin" />
       
@@ -594,7 +594,7 @@ const setupContextMenuItems = () => {
       icon: 'mdi:cog',
       action: () => {
         // 打开设置面板
-        // TODO: 实现设置面板显示逻辑
+        window.dispatchEvent(new CustomEvent('open-settings'))
       },
       divider: true
     },
@@ -604,7 +604,7 @@ const setupContextMenuItems = () => {
       icon: 'mdi:image',
       action: () => {
         // 更换壁纸
-        // TODO: 实现更换壁纸逻辑
+        window.dispatchEvent(new CustomEvent('toggle-wallpaper'))
       }
     }
   ])

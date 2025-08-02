@@ -285,9 +285,9 @@ router.beforeEach((to, from, next) => {
 
   // 添加标题设置
   if (to.meta.title) {
-    document.title = `${to.meta.title} - 春风不语博客`;
+    document.title = `${to.meta.title} - Danny's 博客`;
   } else {
-    document.title = '春风不语博客';
+    document.title = "Danny's 博客";
   }
 
   if (to.matched.some(record => record.meta.requiresAuth) && !isLoggedIn) {

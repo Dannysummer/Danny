@@ -93,7 +93,8 @@
             </div>
             <div class="category-select">
               <label style="color: rgb(255, 255, 255);">分类：</label>
-              <select v-model="link.category">
+              <select v-model="link.category" required>
+                <option value="" disabled>请选择分类</option>
                 <option v-for="(name, key) in categoryNames" :key="key" :value="key">
                   {{ name }}
                 </option>
@@ -171,9 +172,10 @@ const currentRejectLink = ref<FriendLink | null>(null)
 
 // 分类名称映射
 const categoryNames: { [key: string]: string } = {
-  friend: '知交',
+  friend: '普通朋友',
   bigshot: '大佬',
-  newbie: '萌新'
+  close: '密友',
+  tech: '技术博客'
 }
 
 // 按分类分组已通过的友链
@@ -207,8 +209,8 @@ const fetchFriendLinks = async () => {
     const approvedData = await approvedResponse.json()
     console.log('已通过友链原始数据:', approvedData)
     
-    // 获取待审核的友链 - 只加载status为pending状态的友链
-    const pendingUrl = `${config.api.apiUrl}/friend-links-pending?status=pending`
+    // 获取待审核的友链
+    const pendingUrl = `${config.api.apiUrl}/friend-links/pending`
     console.log('获取待审核友链 URL:', pendingUrl)
     
     const pendingResponse = await fetch(pendingUrl, {
@@ -242,8 +244,11 @@ const fetchFriendLinks = async () => {
         console.log('第一条记录的完整数据:', pendingData.data[0])
       }
       
-      // 暂时不过滤，直接显示所有数据
-      pendingLinks.value = pendingData.data || []
+      // 为待审核的友链设置默认category值
+      pendingLinks.value = (pendingData.data || []).map((link: FriendLink) => ({
+        ...link,
+        category: link.category || 'friend' // 默认为'friend'分类
+      }))
       console.log('已设置待审核友链数量:', pendingLinks.value.length)
       console.log('待审核友链详细数据:', pendingLinks.value)
     } else {
@@ -263,16 +268,36 @@ const fetchFriendLinks = async () => {
 
 // 通过友链
 const handleApprove = async (link: FriendLink) => {
+  console.log('审核友链开始:', link)
+  console.log('选择的分类:', link.category)
+  console.log('分类类型:', typeof link.category)
+  
+  if (!link.category || link.category.trim() === '') {
+    showAlert('请先选择友链分类', 'warning')
+    return
+  }
+  
+  const requestBody = {
+    name: link.name,
+    url: link.url,
+    description: link.description,
+    category: link.category,
+    avatar: link.avatar,
+    cover: link.cover,
+    pendingEmail: link.pendingEmail
+  }
+  
+  console.log('发送的请求体:', requestBody)
+  console.log('JSON字符串:', JSON.stringify(requestBody))
+  
   try {
-    const response = await fetch(`${config.api.apiUrl}/friend-links-pending/${link.id}/approve`, {
+    const response = await fetch(`${config.api.apiUrl}/friend-links/pending/${link.id}/approve`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       credentials: 'include',
-      body: JSON.stringify({
-        category: link.category
-      })
+      body: JSON.stringify(requestBody)
     })
     
     const data = await response.json()
@@ -306,7 +331,7 @@ const confirmReject = async () => {
   
   try {
     // 后端请求异步处理
-    const response = await fetch(`${config.api.apiUrl}/friend-links-pending/${currentRejectLink.value.id}/reject`, {
+    const response = await fetch(`${config.api.apiUrl}/friend-links/pending/${currentRejectLink.value.id}/reject`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -392,7 +417,7 @@ onMounted(fetchFriendLinks)
   padding: 8px 16px;
   border: none;
   border-radius: 8px;
-  background: var(--primary-color);
+  /* background: var(--primary-color); */
   color: rgba(0, 162, 255, 0.9);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -828,4 +853,4 @@ onMounted(fetchFriendLinks)
 :root[class='dark-theme'] .cancel-btn {
   background: var(--bg-secondary-dark);
 }
-</style> 
+</style>

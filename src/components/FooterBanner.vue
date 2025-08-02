@@ -96,7 +96,7 @@ onUnmounted(() => {
 
 <style scoped>
 .footer-banner {
-  margin-top: -40px;
+  margin-top: 0px;
   border-radius: 40px 40px 0 0;
   width: 100%;
   background: linear-gradient(
