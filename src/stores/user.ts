@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from 'axios'
 import { config } from '../config/index'
+import { AvatarCache } from '../utils/cache'
 
 // 修改接口定义
 interface UserInfo {
@@ -482,6 +483,9 @@ export const useUserStore = defineStore('user', () => {
         userInfo.value.avatar = imageUrl
         // 保存到本地存储
         localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
+        
+        // 缓存新头像URL
+        AvatarCache.cacheAvatar(userInfo.value.username, imageUrl)
       }
       
       return {
@@ -497,6 +501,26 @@ export const useUserStore = defineStore('user', () => {
     } finally {
       isLoading.value = false
     }
+  }
+
+  // 获取用户头像（优先使用缓存）
+  const getUserAvatar = (username: string): string => {
+    // 首先尝试从缓存获取
+    const cachedAvatar = AvatarCache.getCachedAvatar(username)
+    if (cachedAvatar) {
+      return cachedAvatar
+    }
+    
+    // 如果当前登录用户，返回用户信息中的头像
+    if (userInfo.value && userInfo.value.username === username) {
+      const avatar = userInfo.value.avatar || '/avatars/default-avatar.png'
+      // 缓存头像URL
+      AvatarCache.cacheAvatar(username, avatar)
+      return avatar
+    }
+    
+    // 返回默认头像
+    return '/avatars/default-avatar.png'
   }
 
   // 更新用户信息
@@ -797,6 +821,7 @@ export const useUserStore = defineStore('user', () => {
     fetchUserRank, // 暴露获取排名方法
     initUserRank, // 暴露初始化排名方法
     updateAvatar,
+    getUserAvatar,
     updateUserProfile,
     sendVerificationEmail,
     toggleTwoFactorAuth,

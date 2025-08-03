@@ -29,7 +29,7 @@
                :style="msg.style"
                :data-id="msg.id">
             <div class="danmaku-avatar">
-              <img :src="msg.avatar || '/avatars/default.jpg'" alt="avatar" />
+              <img :src="msg.avatar" alt="avatar" />
             </div>
             {{ msg.content }}
           </div>
@@ -218,6 +218,8 @@ import ParticlesBackground from '../components/ParticlesBackground.vue'
 import { type BulletChat, getActiveBulletChats, addBulletChat } from '../data/bulletChats'
 import { isLoggedIn } from '../utils/auth'
 import { containsSensitiveWord} from '../data/sensitiveWords'
+import { AvatarCache, ImageCache, DanmakuCache } from '../utils/cache'
+import { useUserStore } from '../stores/user'
 
 interface DanmakuMessage {
   id: number
@@ -234,6 +236,7 @@ interface DanmakuMessage {
   }
 }
 
+const userStore = useUserStore()
 const danmakuContainer = ref<HTMLElement | null>(null)
 const visibleMessages = ref<DanmakuMessage[]>([])
 const danmakuContent = ref('')
@@ -242,6 +245,63 @@ const nickname = ref('')
 const selectedColor = ref('#FFFFFF')
 
 let messageId = 0
+
+// 处理头像URL，完全优先使用本地缓存
+const getAvatarUrl = (avatar?: string, username?: string): string => {
+  // 如果有用户名，优先从缓存获取
+  if (username) {
+    const cachedAvatar = AvatarCache.getCachedAvatar(username)
+    if (cachedAvatar) {
+      console.log('✅ 使用缓存的用户头像:', username)
+      return cachedAvatar
+    }
+  }
+  
+  // 如果有直接提供的头像URL，检查是否有缓存
+  if (avatar && avatar !== '/avatars/default.jpg') {
+    // 首先尝试从图片缓存获取
+    const cachedImage = ImageCache.getCachedImage(avatar)
+    if (cachedImage) {
+      console.log('✅ 使用缓存的头像:', avatar)
+      return cachedImage
+    }
+    
+    // 如果缓存中没有，立即缓存头像
+    console.log('📦 缓存新用户头像:', avatar)
+    ImageCache.cacheImage(avatar).then((cachedUrl) => {
+      console.log('✅ 新用户头像缓存完成:', avatar)
+      // 同时缓存到用户缓存中
+      if (username) {
+        AvatarCache.cacheAvatar(username, cachedUrl)
+      } else {
+        const userIdentifier = AvatarCache.generateUserIdentifier(avatar)
+        AvatarCache.cacheAvatar(userIdentifier, cachedUrl)
+      }
+    }).catch(() => {
+      console.warn('❌ 新用户头像缓存失败:', avatar)
+    })
+    
+    return avatar
+  }
+  
+  // 返回默认头像（强制使用缓存的版本）
+  const defaultAvatar = '/avatars/default-avatar.png'
+  const cachedDefault = ImageCache.getCachedImage(defaultAvatar)
+  if (cachedDefault) {
+    console.log('✅ 使用缓存的默认头像')
+    return cachedDefault
+  }
+  
+  // 如果缓存中没有，尝试立即缓存（但不阻塞）
+  console.log('⚠️ 默认头像未缓存，立即缓存...')
+  ImageCache.cacheImage(defaultAvatar).then(() => {
+    console.log('✅ 默认头像缓存完成')
+  }).catch(() => {
+    console.warn('❌ 默认头像缓存失败')
+  })
+  
+  return defaultAvatar
+}
 
 // 存储所有弹幕数据
 const allBulletChats = ref<BulletChat[]>([])
@@ -283,8 +343,8 @@ const submitReply = (comment: Comment) => {
   const newReply: Comment = {
     id: Date.now(),
     floor: comment.floor,
-    nickname: "游客", // 这里可以改成实际的用户名
-    avatar: "/avatars/default.jpg", // 这里可以改成实际的用户头像
+    nickname: userStore.userInfo?.username || "游客", // 使用实际用户名
+    avatar: getAvatarUrl(userStore.userInfo?.avatar, userStore.userInfo?.username), // 使用缓存的头像
     content: replyContent.value,
     time: new Date().toLocaleString(),
     likes: 0
@@ -311,18 +371,41 @@ const getRandomDuration = () => {
   return Math.random() * (maxDuration - minDuration) + minDuration
 }
 
-// 从数据源加载弹幕
+// 从数据源加载弹幕（完全优先使用本地缓存）
 const loadBulletChats = async () => {
   try {
-    console.log('从API获取弹幕数据')
+    // 确保默认头像已缓存
+    await ensureDefaultAvatarCached()
+    
+    // 首先尝试从本地缓存获取
+    const cachedData = DanmakuCache.getCachedDanmakuData()
+    if (cachedData && cachedData.length > 0) {
+      allBulletChats.value = cachedData
+      // 打乱弹幕顺序，提高随机性
+      shuffleArray(allBulletChats.value)
+      return cachedData
+    }
+
+    // 如果本地缓存不存在，从API获取（仅首次访问）
     const activeBulletChats = await getActiveBulletChats()
     
     if (activeBulletChats.length > 0) {
-      // 保存所有弹幕数据
-      allBulletChats.value = activeBulletChats
-      // 打乱弹幕顺序，提高随机性
-      shuffleArray(allBulletChats.value)
-      return activeBulletChats
+      // 立即缓存到本地（同步等待完成）
+      await DanmakuCache.cacheDanmakuData(activeBulletChats)
+      
+      // 从缓存获取处理过的数据（头像已经是base64）
+      const processedData = DanmakuCache.getCachedDanmakuData()
+      if (processedData) {
+        allBulletChats.value = processedData
+        // 打乱弹幕顺序，提高随机性
+        shuffleArray(allBulletChats.value)
+        return processedData
+      } else {
+        // 如果缓存失败，使用原始数据
+        allBulletChats.value = activeBulletChats
+        shuffleArray(allBulletChats.value)
+        return activeBulletChats
+      }
     } else {
       console.warn('获取到的弹幕数据为空')
       return []
@@ -531,17 +614,103 @@ const submitDanmaku = async () => {
   
   try {
     // console.log('准备发送API请求...');
+    // 获取用户头像（优先使用缓存，避免网络请求）
+    let userAvatar = '/avatars/default-avatar.png' // 默认头像
+    
+    if (userStore.userInfo?.avatar) {
+      // 首先检查是否有缓存
+      const cachedAvatar = AvatarCache.getCachedAvatar(userStore.userInfo.username || '')
+      if (cachedAvatar) {
+        userAvatar = cachedAvatar
+      } else {
+        // 检查图片缓存
+        const cachedImage = ImageCache.getCachedImage(userStore.userInfo.avatar)
+        if (cachedImage) {
+          userAvatar = cachedImage
+        } else {
+          // 如果没有缓存，使用原始URL（避免立即下载）
+          userAvatar = userStore.userInfo.avatar
+        }
+      }
+    }
+    
     // 将新弹幕添加到数据模型中
-    const result = await addBulletChat(danmakuContent.value, nickname.value ? undefined : selectedColor.value);
+    // 注意：发送到服务器时使用原始头像URL，而不是base64数据
+    const serverAvatar = userStore.userInfo?.avatar || '/avatars/default-avatar.png'
+    const result = await addBulletChat(danmakuContent.value, serverAvatar);
     // console.log('API响应:', result);
     
     if (result.success && result.data) {
       // console.log('弹幕发送成功，更新UI');
+      
+      // 确保用户头像被缓存
+      let finalUserAvatar = userAvatar
+      if (userStore.userInfo?.avatar && userAvatar === userStore.userInfo.avatar) {
+        // 检查是否已经缓存过
+        const existingCache = ImageCache.getCachedImage(userStore.userInfo.avatar)
+        if (existingCache) {
+          finalUserAvatar = existingCache
+        } else {
+          // 如果使用的是原始URL且未缓存，立即缓存它
+          try {
+            finalUserAvatar = await ImageCache.cacheImage(userStore.userInfo.avatar)
+            
+            // 同时缓存到用户缓存
+            if (userStore.userInfo?.username) {
+              AvatarCache.cacheAvatar(userStore.userInfo.username, finalUserAvatar)
+            }
+          } catch (error) {
+            console.warn('❌ 用户头像缓存失败:', error)
+            finalUserAvatar = userAvatar
+          }
+        }
+      }
+      
+      // 创建新弹幕数据，确保头像使用缓存版本
+      // 注意：存储到本地时使用缓存的base64数据，但服务器返回的是原始URL
+      const newBulletChat = {
+        ...result.data,
+        avatar: finalUserAvatar // 使用已经缓存的头像URL（base64或原始URL）
+      }
+      
       // 添加到弹幕列表中
-      allBulletChats.value.push(result.data);
+      allBulletChats.value.push(newBulletChat);
+      
+      // 只缓存新弹幕的头像，而不是重新缓存所有弹幕
+      if (newBulletChat.avatar && !newBulletChat.avatar.startsWith('data:image')) {
+        // 检查是否已经缓存过
+        const existingCache = ImageCache.getCachedImage(newBulletChat.avatar)
+        if (existingCache) {
+          newBulletChat.avatar = existingCache
+        } else {
+          try {
+            const cachedAvatar = await ImageCache.cacheImage(newBulletChat.avatar)
+            newBulletChat.avatar = cachedAvatar
+          } catch (error) {
+            console.warn('❌ 新弹幕头像缓存失败:', error)
+          }
+        }
+      }
+      
+      // 更新弹幕缓存（只更新缓存数据，不重新下载头像）
+      try {
+        const stored = localStorage.getItem('danmaku_cache')
+        if (stored) {
+          const cacheItem = JSON.parse(stored)
+          // 只更新弹幕数据，保留现有的头像缓存
+          cacheItem.bulletChats = allBulletChats.value
+          cacheItem.timestamp = Date.now()
+          localStorage.setItem('danmaku_cache', JSON.stringify(cacheItem))
+        } else {
+          // 如果没有现有缓存，才进行完整缓存
+          await DanmakuCache.cacheDanmakuData(allBulletChats.value)
+        }
+      } catch (error) {
+        console.warn('更新弹幕缓存失败:', error)
+      }
       
       // 立即在界面上显示
-      addDanmaku(result.data.content, nickname.value, result.data.avatar);
+      addDanmaku(newBulletChat.content, userStore.userInfo?.username, newBulletChat.avatar);
       danmakuContent.value = '';
       
       createMessage('弹幕发送成功，当前只有您能看到，领主大人审批了其他领民才能看到哟', 'success', 5000);
@@ -585,10 +754,49 @@ const addDanmaku = (content: string, nickname?: string, avatar?: string) => {
   // 计算弹幕顶部位置
   const top = `${selectedLane * 10}%`
   
+  // 确保头像被缓存（特别是新用户的头像）
+  let cachedAvatar = avatar || '/avatars/default-avatar.png'
+  
+  // 优先使用缓存，避免网络请求
+  if (nickname) {
+    const userCachedAvatar = AvatarCache.getCachedAvatar(nickname)
+    if (userCachedAvatar) {
+      cachedAvatar = userCachedAvatar
+    }
+  }
+  
+  // 检查是否是base64数据（已缓存）
+  if (avatar && avatar.startsWith('data:image')) {
+    cachedAvatar = avatar
+  } else if (avatar && avatar !== '/avatars/default.jpg' && avatar !== '/avatars/default-avatar.png') {
+    // 检查图片缓存
+    const imageCachedAvatar = ImageCache.getCachedImage(avatar)
+    if (imageCachedAvatar) {
+      cachedAvatar = imageCachedAvatar
+    } else {
+      // 如果头像未缓存，强制使用默认头像（避免网络请求）
+      const defaultAvatar = '/avatars/default-avatar.png'
+      const cachedDefault = ImageCache.getCachedImage(defaultAvatar)
+      cachedAvatar = cachedDefault || defaultAvatar
+      
+      // 异步缓存原始头像（不阻塞显示）
+      ImageCache.cacheImage(avatar).catch(() => {
+        console.warn('❌ 异步缓存头像失败:', avatar)
+      })
+    }
+  } else {
+    // 对于默认头像，确保使用缓存版本
+    const defaultAvatar = '/avatars/default-avatar.png'
+    const cachedDefault = ImageCache.getCachedImage(defaultAvatar)
+    if (cachedDefault) {
+      cachedAvatar = cachedDefault
+    }
+  }
+  
   const message: DanmakuMessage = {
     id: messageId++,
     content: nickname ? `${nickname}: ${content}` : content,
-    avatar: avatar,
+    avatar: cachedAvatar, // 使用缓存的头像
     color: getRandomColor(), // 使用随机颜色增加视觉多样性
     style: {
       top,
@@ -630,10 +838,31 @@ const getRandomColor = () => {
   return colors[Math.floor(Math.random() * colors.length)]
 }
 
+// 强制缓存默认头像
+const ensureDefaultAvatarCached = async () => {
+  const defaultAvatar = '/avatars/default-avatar.png'
+  if (!ImageCache.hasCachedImage(defaultAvatar)) {
+    try {
+      await ImageCache.cacheImage(defaultAvatar)
+      return true
+    } catch (error) {
+      console.warn('默认头像缓存失败:', error)
+      return false
+    }
+  }
+  return true
+}
+
 // 修改 onMounted 钩子，处理异步加载
 onMounted(async () => {
+  // 强制缓存默认头像
+  await ensureDefaultAvatarCached()
+  
   // 从数据源一次性加载所有弹幕
   const bulletChatsData = await loadBulletChats()
+  
+  // 检查缓存状态
+  const cacheStats = DanmakuCache.getCacheStats()
   
   // 初始显示几条弹幕，营造氛围
   const initialCount = Math.min(bulletChatsData.length, 5)
@@ -664,6 +893,113 @@ onMounted(async () => {
   
   // 初始化弹幕间隔
   bulletInterval.value = Math.max(1000, Math.min(3000, window.innerWidth / 4))
+  
+  // 开发模式下添加强制刷新缓存的快捷键
+  if (import.meta.env.DEV) {
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault()
+        console.log('强制刷新缓存...')
+        DanmakuCache.clearDanmakuCache()
+        ImageCache.clearAllImageCache()
+        location.reload()
+      }
+      
+      // 按 Ctrl+Shift+C 查看缓存状态
+      if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+        e.preventDefault()
+        console.log('=== 缓存状态 ===')
+        
+        const danmakuStats = DanmakuCache.getCacheStats()
+        const imageStats = ImageCache.getCacheStats()
+        
+        console.log('📊 弹幕缓存:', danmakuStats)
+        console.log('🖼️ 图片缓存:', {
+          count: imageStats.count,
+          totalSize: `${(imageStats.totalSize / 1024 / 1024).toFixed(2)}MB`,
+          maxSize: `${(imageStats.maxSize / 1024 / 1024).toFixed(2)}MB`,
+          usagePercent: `${imageStats.usagePercent}%`
+        })
+        console.log('👤 默认头像缓存:', ImageCache.hasCachedImage('/avatars/default-avatar.png') ? '✅ 已缓存' : '❌ 未缓存')
+        
+        // 检查是否完全使用本地缓存
+        const hasDanmakuCache = DanmakuCache.hasCachedDanmakuData()
+        const hasDefaultAvatarCache = ImageCache.hasCachedImage('/avatars/default-avatar.png')
+        console.log('🎯 是否完全使用本地缓存:', hasDanmakuCache && hasDefaultAvatarCache ? '✅ 是' : '❌ 否')
+        
+        // 缓存建议
+        if (imageStats.usagePercent > 80) {
+          console.warn('⚠️ 缓存使用率过高，建议清理部分缓存')
+        }
+      }
+      
+      // 按 Ctrl+Shift+D 强制缓存默认头像
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault()
+        ensureDefaultAvatarCached()
+      }
+      
+      // 按 Ctrl+Shift+X 清除所有缓存
+      if (e.ctrlKey && e.shiftKey && e.key === 'X') {
+        e.preventDefault()
+        DanmakuCache.clearDanmakuCache()
+        ImageCache.clearAllImageCache()
+        AvatarCache.clearAllAvatarCache()
+        console.log('✅ 所有缓存已清除')
+      }
+      
+      // 按 Ctrl+Shift+N 检查新弹幕缓存状态
+      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+        e.preventDefault()
+        console.log('=== 新弹幕缓存状态 ===')
+        console.log('当前弹幕总数:', allBulletChats.value.length)
+        if (allBulletChats.value.length > 0) {
+          const latestBullet = allBulletChats.value[allBulletChats.value.length - 1]
+          if (latestBullet.avatar) {
+            const isBase64 = latestBullet.avatar.startsWith('data:image')
+            console.log('最新弹幕头像状态:', isBase64 ? '✅ 已缓存(base64)' : '❌ 未缓存(URL)')
+          }
+        }
+        const danmakuStats = DanmakuCache.getCacheStats()
+        console.log('弹幕缓存状态:', danmakuStats)
+        console.log('是否完全使用本地缓存:', DanmakuCache.hasCachedDanmakuData() ? '✅ 是' : '❌ 否')
+        
+        // 检查用户头像缓存状态
+        if (userStore.userInfo?.username) {
+          const userCached = AvatarCache.getCachedAvatar(userStore.userInfo.username)
+          console.log('用户头像缓存状态:', userCached ? '✅ 已缓存' : '❌ 未缓存')
+        }
+        
+        // 检查当前可见弹幕的头像状态
+        console.log('当前可见弹幕数量:', visibleMessages.value.length)
+        visibleMessages.value.forEach((msg, index) => {
+          if (msg.avatar) {
+            const isBase64 = msg.avatar.startsWith('data:image')
+            console.log(`弹幕${index + 1}头像状态:`, isBase64 ? '✅ 已缓存(base64)' : '❌ 未缓存(URL)')
+          }
+        })
+      }
+      
+      // 按 Ctrl+Shift+M 监控缓存调用
+      if (e.ctrlKey && e.shiftKey && e.key === 'M') {
+        e.preventDefault()
+        console.log('=== 缓存调用监控 ===')
+        console.log('用户头像URL:', userStore.userInfo?.avatar)
+        console.log('用户头像是否已缓存:', ImageCache.hasCachedImage(userStore.userInfo?.avatar || ''))
+        console.log('默认头像是否已缓存:', ImageCache.hasCachedImage('/avatars/default-avatar.png'))
+        
+        // 检查所有弹幕的头像URL
+        const avatarUrls = new Set<string>()
+        allBulletChats.value.forEach(chat => {
+          if (chat.avatar && !chat.avatar.startsWith('data:image')) {
+            avatarUrls.add(chat.avatar)
+          }
+        })
+        console.log('所有弹幕头像URL:', Array.from(avatarUrls))
+        console.log('未缓存的头像URL:', Array.from(avatarUrls).filter(url => !ImageCache.hasCachedImage(url)))
+      }
+    })
+  }
 })
 
 // 修改 onUnmounted 钩子，清除资源
@@ -750,8 +1086,8 @@ const submitComment = () => {
   const newComment: Comment = {
     id: Date.now(),
     floor: commentsList.value.length + 1,
-    nickname: "游客",
-    avatar: "/avatars/default.jpg",
+    nickname: userStore.userInfo?.username || "游客",
+    avatar: getAvatarUrl(userStore.userInfo?.avatar, userStore.userInfo?.username),
     content: commentContent.value,
     image: selectedImage.value, // 添加图片
     time: new Date().toLocaleString(),

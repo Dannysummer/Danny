@@ -282,11 +282,12 @@ const validateForm = () => {
   
   // 验证邮箱
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!formData.pendingEmail.trim()) {
+  const emailValue = formData.pendingEmail?.trim() || ''
+  if (!emailValue) {
     errors.pendingEmail = true
     errorMessages.push('请填写邮箱地址')
     isValid = false
-  } else if (!emailPattern.test(formData.pendingEmail)) {
+  } else if (!emailPattern.test(emailValue)) {
     errors.pendingEmail = true
     errorMessages.push('请填写正确的邮箱格式')
     isValid = false
@@ -416,7 +417,10 @@ const handleSubmit = async () => {
 onMounted(() => {
   // 如果用户已登录且有邮箱信息，自动填充
   if (userStore.isLoggedIn && userStore.userInfo?.email) {
-    formData.pendingEmail = userStore.userInfo.email
+    const email = userStore.userInfo.email.trim()
+    if (email) {
+      formData.pendingEmail = email
+    }
   }
 })
 
@@ -424,10 +428,23 @@ onMounted(() => {
 watch(() => userStore.isLoggedIn, (newValue) => {
   if (newValue && userStore.userInfo?.email) {
     // 用户登录时，自动填充邮箱
-    formData.pendingEmail = userStore.userInfo.email
+    const email = userStore.userInfo.email.trim()
+    if (email) {
+      formData.pendingEmail = email
+    }
   } else if (!newValue) {
     // 用户登出时，清空邮箱
     formData.pendingEmail = ''
+  }
+})
+
+// 监听用户信息变化，确保邮箱实时更新
+watch(() => userStore.userInfo?.email, (newEmail) => {
+  if (userStore.isLoggedIn && newEmail) {
+    const email = newEmail.trim()
+    if (email) {
+      formData.pendingEmail = email
+    }
   }
 })
 </script>
