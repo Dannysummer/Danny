@@ -276,16 +276,18 @@
                 </div>
               </div>
             </article>
-          </div>
-        </div>
-      </div>
-
+            
       <div class="view-more">
         <router-link to="/archive" class="view-more-link">
           查看更多文章
           <Icon icon="material-symbols:arrow-forward" class="arrow-icon" />
         </router-link>
       </div>
+          </div>
+          
+        </div>
+      </div>
+
     </div>
     <!-- 添加音乐列表弹出层 -->
     <Transition name="slide-right">
@@ -656,6 +658,7 @@
 }
 
 .articles-container {
+  width: 100%;
   position: relative;
   z-index: 2;
   max-width: 1200px;
@@ -785,10 +788,6 @@
   grid-area: image;
 }
 
-.featured-article:hover .article-cover {
-  transform: scale(1.05);
-}
-
 .article-content {
   position: relative;
   padding: 30px;
@@ -815,10 +814,14 @@
 }
 
 .article-title {
+  max-width: 450px;
   font-size: 1.8rem;
   color: white;
   margin-bottom: 15px;
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
@@ -836,7 +839,7 @@
   align-items: center;
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 2px solid rgba(91, 208, 255, 0.884);
 }
 
 .article-tags {
@@ -882,6 +885,7 @@
   }
 
   .article-cover {
+    /* width: 100px!important; */
     height: 200px;
   }
 
@@ -914,13 +918,18 @@
 }
 
 .view-more {
+  width: 100%;
   position: relative;
   z-index: 2;
   text-align: center;
-  margin-top: 50px;
+  margin-top: 10px;
 }
 
 .view-more-link {
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border-radius: 0px;
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -929,11 +938,11 @@
   text-decoration: none;
   font-weight: 500;
   font-size: 1.1rem;
-  background: rgba(135, 206, 235, 0.8);
+  background: rgba(73, 203, 255, 0.548);
   /* 半透明天蓝色 */
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
-  border-radius: 30px;
+  border-radius: 10px;
   transition: all 0.3s ease;
   box-shadow:
     0 4px 15px rgba(135, 206, 235, 0.3),
@@ -942,10 +951,10 @@
 
 .view-more-link:hover {
   transform: translateY(-2px);
-  background: rgba(135, 206, 235, 0.9);
+  background: rgba(39, 194, 255, 0.712);
   box-shadow:
-    0 8px 25px rgba(135, 206, 235, 0.4),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+    0 8px 25px rgba(74, 228, 255, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .view-more-link:active {
@@ -963,16 +972,16 @@
 
 /* 暗色主题适配 */
 .dark-theme .view-more-link {
-  background: rgba(135, 206, 235, 0.6);
+  background: rgba(1, 122, 170, 0.6);
   box-shadow:
     0 4px 15px rgba(0, 0, 0, 0.3),
     inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .dark-theme .view-more-link:hover {
-  background: rgba(135, 206, 235, 0.7);
+  background: rgba(39, 194, 255, 0.712);
   box-shadow:
-    0 8px 25px rgba(0, 0, 0, 0.4),
+    0 8px 25px rgba(74, 228, 255, 0.4),
     inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
@@ -1133,7 +1142,8 @@
   border-radius: 12px;
   color: white;
   text-decoration: none;
-  transition: transform 0.3s ease;
+  /* transition: transform 0.3s ease; */
+  transition: all 0.3s ease;
 }
 
 .nav-card:hover {
@@ -1149,22 +1159,88 @@
 
 .blue {
   background: linear-gradient(135deg, #87CEEB, #5B9FBF);
+  position: relative;
+  overflow: hidden;
   /* 天蓝色到深天蓝色 */
+}
+
+.blue::before{
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40%;
+  height: 105%;
+  background: url('/background/Home/Home (1).png') no-repeat center center;
+  background-size: cover;
+  opacity: 0.7;
+  z-index: 0;
 }
 
 .green {
   background: linear-gradient(135deg, #87CEEB, #48D1CC);
+  position: relative;
+  overflow: hidden;
   /* 天蓝色到绿松石色 */
+}
+
+.green::before{
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 10%;
+  width: 35%;
+  height: 100%;
+  background: url('/background/Home/Home (2).png') no-repeat center center;
+  background-size: cover;
+  opacity: 0.9;
+  z-index: 0;
 }
 
 .orange {
   background: linear-gradient(135deg, #87CEEB, #6495ED);
+  position: relative;
+  overflow: hidden;
   /* 天蓝色到矢车菊蓝 */
+}
+
+.orange::before{
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -10%;
+  width: 70%;
+  height: 130%;
+  background: url('/background/Home/Home (3).png') no-repeat center center;
+  background-size: cover;
+  opacity: 0.7;
+  z-index: 0;
 }
 
 .pink {
   background: linear-gradient(135deg, #87CEEB, #4169E1);
+  position: relative;
+  overflow: hidden;
   /* 天蓝色到皇家蓝 */
+}
+
+.pink::before{
+  content: '';
+  position: absolute;
+  /* top: 15%; */
+  bottom: -85%;
+  right: -15%;
+  width: 100%;
+  height: 220%;
+  background: url('/background/Home/Home (4).png') no-repeat center center ;
+  background-size: cover;
+  opacity: 0.7;
+  z-index: 0;
+  scale: 0.8;
+}
+
+.pink::before:hover{
+  scale: 1.4;
 }
 
 .friend-links {
@@ -1177,6 +1253,13 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   color: white;
   margin-top: 20px;
+  transition: all 0.3s ease;
+}
+
+.friend-links:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 12px 36px rgb(14, 227, 255);
+  transition: all 0.3s ease;
 }
 
 .car {
@@ -1394,6 +1477,10 @@
 }
 
 .post-title {
+  max-width: 200px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
   font-size: 0.9rem;
   margin-bottom: 5px;
   color: var(--text-primary);
@@ -1457,6 +1544,7 @@
   -webkit-backdrop-filter: blur(10px);
   border: var(--card-border-light);
   box-shadow: var(--card-shadow-light);
+  transition: all 0.3s ease;
 }
 
 /* 搜索框特殊样式 */
@@ -1477,6 +1565,7 @@
   background: rgba(20, 20, 20, 0.6);
   border: var(--card-border-dark);
   box-shadow: var(--card-shadow-dark);
+  transition: all 0.3s ease;
 }
 
 .dark-theme .search-box input {
@@ -1489,10 +1578,18 @@
 /* 增强卡片悬停效果 */
 .user-card:hover,
 .recent-posts:hover,
-.featured-article:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+.friend-links:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 12px 36px rgb(14, 227, 255);
   transition: all 0.3s ease;
+  border: 1px solid rgba(135, 206, 235, 0.3);
+}
+
+.featured-article:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 12px 36px rgb(14, 227, 255);
+  /* transition: all 0.3s ease; */
+  border: 1px solid rgba(135, 206, 235, 0.3);
 }
 
 /* 搜索框获得焦点时的效果 */
@@ -1982,9 +2079,19 @@
 /* 亮色主题适配 */
 @media (prefers-color-scheme: light) {
   .music-player {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(187, 187, 187, 0.301);
     border: 1px solid rgba(135, 206, 235, 0.3);
     color: var(--text-primary);
+  }
+
+  .music-player {
+    transition: all 0.3s ease;
+  }
+  
+  .music-player:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(65, 201, 255, 0.836);
+    box-shadow: 0 0 15px rgba(0, 183, 255, 0.4), 0 0 30px rgba(0, 183, 255, 0.2);
   }
 
   .song-name {
@@ -2007,6 +2114,12 @@
   background: rgba(20, 20, 20, 0.6);
   border: 1px solid rgba(135, 206, 235, 0.2);
   color: rgba(255, 255, 255, 0.9);
+}
+
+.dark-theme .music-player:hover {
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(135, 206, 235, 0.5);
+  box-shadow: 0 0 20px rgba(135, 206, 235, 0.3), 0 0 40px rgba(135, 206, 235, 0.1);
 }
 
 .dark-theme .song-name {

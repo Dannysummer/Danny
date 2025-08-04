@@ -771,7 +771,13 @@ onMounted(() => {
 /* 亮色主题适配 */
 @media (prefers-color-scheme: light) {
   .music-player {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(135, 206, 235, 0.3);
+    color: var(--text-primary);
+  }
+
+  .music-player:hover {
+    background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(135, 206, 235, 0.3);
     color: var(--text-primary);
   }
