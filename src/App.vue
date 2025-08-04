@@ -85,7 +85,7 @@
             <button class="action-btn" aria-label="站内随机文章" alt="站内随机文章" title="站内随机文章" @click="goToRandomArticle">
               <FontAwesomeIcon :icon="faShuffle" />
             </button>
-            <button class="action-btn" aria-label="搜索" alt="搜索站内文章" title="搜索站内文章">
+            <button class="action-btn" aria-label="搜索" alt="搜索站内文章" title="搜索站内文章" @click="openSearch">
               <FontAwesomeIcon :icon="faMagnifyingGlass " />
             </button>
           </div>
@@ -152,6 +152,12 @@
       <!-- <UserAvatar v-if="!$route.meta.hideAvatar" /> -->
       <FloatingLogin v-if="!$route.meta.hideLogin" />
       
+      <!-- 搜索弹窗 -->
+      <SearchModal 
+        :is-visible="isSearchModalVisible"
+        @close="closeSearchModal"
+      />
+      
       <!-- 评论框 -->
       <!-- 注释掉不存在的组件引用 -->
       <!-- <CommentPanel 
@@ -189,9 +195,10 @@ import LoadingPage from './components/LoadingPage.vue'
 // import UserAvatar from './components/UserAvatar.vue'
 import { useRoute, useRouter } from 'vue-router'
 import FloatingLogin from './components/FloatingLogin.vue'
+import SearchModal from './components/SearchModal.vue'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
-import { faHouse, faBus, faLink, faShuffle, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons'
+import { faHouse, faBus, faLink, faShuffle, faMagnifyingGlass, faTimes } from '@fortawesome/free-solid-svg-icons'
 // 注释掉不存在的组件导入
 // import CommentPanel from './components/CommentPanel.vue'
 // import Toast from './components/Toast.vue'
@@ -207,7 +214,7 @@ const userStore = useUserStore()
 const contextMenuStore = useContextMenuStore()
 
 // 添加Font Awesome库初始化
-library.add(faHouse, faBus, faLink, faShuffle, faMagnifyingGlass)
+library.add(faHouse, faBus, faLink, faShuffle, faMagnifyingGlass, faTimes)
 
 const commentStore = ref({
   isCommentPanelOpen: false,
@@ -672,6 +679,21 @@ const goToRandomArticle = () => {
       // 备用方案：跳转到文章列表页面
       router.push('/articles')
     })
+}
+
+// 搜索弹窗控制
+const isSearchModalVisible = ref(false)
+
+const openSearch = () => {
+  isSearchModalVisible.value = true
+  // 添加背景虚化效果
+  document.body.classList.add('search-modal-open')
+}
+
+const closeSearchModal = () => {
+  isSearchModalVisible.value = false
+  // 移除背景虚化效果
+  document.body.classList.remove('search-modal-open')
 }
 
 // 添加滚动到顶部的方法
@@ -1811,6 +1833,24 @@ body {
   position: relative;
   z-index: 100;
   margin-top: auto;
+}
+
+/* 搜索弹窗背景虚化效果 */
+.search-modal-open {
+  overflow: hidden;
+}
+
+.search-modal-open::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  pointer-events: none;
 }
 
 /* 确保页脚在内容之后显示 */
