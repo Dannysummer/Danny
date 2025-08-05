@@ -4,15 +4,8 @@
       <div class="search-modal-container">
         <div class="search-input-wrapper">
           <FontAwesomeIcon :icon="faMagnifyingGlass" class="search-icon" />
-          <input
-            ref="searchInput"
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索文章标题、内容、标签..."
-            class="search-input"
-            @input="handleSearch"
-            @keyup.esc="close"
-          />
+          <input ref="searchInput" v-model="searchQuery" type="text" placeholder="搜索文章标题、内容、标签..." class="search-input"
+            @input="handleSearch" @keyup.esc="close" />
           <button v-if="searchQuery" @click="clearSearch" class="clear-btn">
             <FontAwesomeIcon :icon="faTimes" />
           </button>
@@ -24,12 +17,8 @@
         </div>
 
         <div v-else-if="searchResults.length > 0" class="search-results">
-          <div
-            v-for="result in searchResults"
-            :key="result.objectID"
-            class="search-result-item"
-            @click="goToArticle(result.objectID)"
-          >
+          <div v-for="result in searchResults" :key="result.objectID" class="search-result-item"
+            @click="goToArticle(result.objectID)">
             <h3 class="result-title" v-html="result.title"></h3>
             <p class="search-snippet" v-html="result._snippetResult?.content?.value || result.description"></p>
             <div class="search-meta">
@@ -57,12 +46,7 @@
         <div v-else class="search-tips">
           <p>热门搜索：</p>
           <div class="hot-tags">
-            <span
-              v-for="tag in hotTags"
-              :key="tag"
-              @click="searchTag(tag)"
-              class="hot-tag"
-            >
+            <span v-for="tag in hotTags" :key="tag" @click="searchTag(tag)" class="hot-tag">
               {{ tag }}
             </span>
           </div>
@@ -151,14 +135,14 @@ watch(() => props.isVisible, (newVal) => {
 // 搜索处理
 const handleSearch = async () => {
   const query = searchQuery.value.trim()
-  
+
   if (!query) {
     searchResults.value = []
     return
   }
 
   isSearching.value = true
-  
+
   try {
     // 模拟搜索结果，实际使用时替换为 Algolia API 调用
     await mockSearch(query)
@@ -173,7 +157,7 @@ const handleSearch = async () => {
 const mockSearch = async (query: string) => {
   // 模拟延迟
   await new Promise(resolve => setTimeout(resolve, 500))
-  
+
   // 模拟搜索结果
   const mockResults: SearchResult[] = [
     {
@@ -198,7 +182,7 @@ const mockSearch = async (query: string) => {
       views: 890
     }
   ]
-  
+
   searchResults.value = mockResults
 }
 
@@ -239,7 +223,7 @@ const formatDate = (dateString: string) => {
 // 键盘事件处理
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!props.isVisible) return
-  
+
   switch (e.key) {
     case 'Escape':
       e.preventDefault()
@@ -270,15 +254,22 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 弹窗动画 */
+/* 弹窗动画 - 背景模糊效果 */
 .modal-fade-enter-active,
 .modal-fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
+  backdrop-filter: blur(0px);
+}
+
+.modal-fade-enter-to,
+.modal-fade-leave-from {
+  opacity: 1;
+  backdrop-filter: blur(4px);
 }
 
 /* 背景遮罩 */
@@ -288,23 +279,31 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
+  background: rgba(1, 9, 19, 0.212);
+  backdrop-filter: blur(0px);
   display: flex;
   align-items: flex-start;
   justify-content: center;
   padding-top: 10vh;
+  scale: 1.0;
   z-index: 10001;
 }
 
-/* 搜索容器 */
+/* 搜索容器 - 透明毛玻璃效果 */
 .search-modal-container {
-  background: var(--bg-primary);
-  border-radius: 16px;
+  background: rgba(6, 20, 34, 0.212);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 2px solid rgba(3, 175, 255, 0.445);
+  border-radius: 20px;
+  position: relative;
+  top: 20%;
   width: 90%;
   max-width: 600px;
   max-height: 70vh;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
   overflow: hidden;
   animation: slideUp 0.3s ease;
 }
@@ -312,11 +311,12 @@ onUnmounted(() => {
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(-20px);
+    transform: translateY(-20px) scale(0.98);
   }
+
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -324,15 +324,15 @@ onUnmounted(() => {
 .search-input-wrapper {
   position: relative;
   padding: 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid rgb(255, 255, 255);
 }
 
 .search-icon {
   position: absolute;
-  left: 20px;
+  left: 40px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-primary);
+  color: rgba(0, 204, 255, 0.726);
   opacity: 0.6;
   font-size: 18px;
 }
@@ -341,27 +341,32 @@ onUnmounted(() => {
   width: 100%;
   padding: 12px 20px 12px 50px;
   font-size: 16px;
-  border: 2px solid transparent;
+  border-color: rgba(67, 202, 255, 0.5);
+  background: transparent;
   border-radius: 12px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  backdrop-filter: blur(10px);
+  color: #fff;
   outline: none;
   transition: all 0.3s ease;
 }
 
 .search-input:focus {
-  border-color: #87CEEB;
-  box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.1);
+  border: 2px solid rgba(0, 204, 255, 0.726);
+  border-radius: 12px;
+  background: rgba(109, 177, 255, 0.1);
+  box-shadow:
+    0 0 0 3px rgba(135, 206, 235, 0.1),
+    0 0 20px rgba(135, 206, 235, 0.1);
 }
 
 .clear-btn {
   position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 30px;
+  top: 25%;
+  /* transform: translateY(-50%); */
   background: none;
   border: none;
-  color: var(--text-primary);
+  color: #37e1ff;
   opacity: 0.6;
   cursor: pointer;
   padding: 8px;
@@ -371,7 +376,9 @@ onUnmounted(() => {
 
 .clear-btn:hover {
   opacity: 1;
-  background: rgba(135, 206, 235, 0.1);
+  transform: rotate(180deg);
+  transform-origin: center;
+  /* background: rgba(135, 206, 235, 0.1); */
 }
 
 /* 加载状态 */
@@ -395,8 +402,13 @@ onUnmounted(() => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* 搜索结果 */
@@ -410,24 +422,27 @@ onUnmounted(() => {
   padding: 16px;
   margin-bottom: 12px;
   border-radius: 12px;
-  background: var(--bg-secondary);
+  background: rgba(255, 255, 255, 0.068);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;
   transition: all 0.3s ease;
-  border: 1px solid transparent;
 }
 
 .search-result-item:hover {
-  background: rgba(135, 206, 235, 0.05);
-  border-color: rgba(135, 206, 235, 0.2);
+  background: rgba(0, 0, 0, 0.397);
+  border-color: rgba(23, 187, 252, 0.767);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 8px 25px rgba(2, 183, 255, 0.15),
+    0 0 0 1px rgba(135, 206, 235, 0.1);
 }
 
 .result-title {
   margin: 0 0 8px 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #37e1ff;
 }
 
 .result-title :deep(mark) {
@@ -440,7 +455,7 @@ onUnmounted(() => {
 .search-snippet {
   margin: 0 0 12px 0;
   font-size: 14px;
-  color: var(--text-primary);
+  color: #87CEEB;
   opacity: 0.8;
   line-height: 1.5;
 }
@@ -456,7 +471,7 @@ onUnmounted(() => {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: var(--text-primary);
+  color: #fff;
   opacity: 0.6;
 }
 
@@ -489,7 +504,7 @@ onUnmounted(() => {
 .search-tips p {
   margin: 0 0 12px 0;
   font-size: 14px;
-  color: var(--text-primary);
+  color: #fff;
   opacity: 0.8;
 }
 
@@ -501,33 +516,37 @@ onUnmounted(() => {
 
 .hot-tag {
   padding: 6px 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 5px;
   font-size: 12px;
-  color: var(--text-primary);
+  color: #fff;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .hot-tag:hover {
-  background: rgba(135, 206, 235, 0.1);
+  background: rgba(135, 206, 235, 0.15);
   border-color: #87CEEB;
+  box-shadow: 0px 0px 5px #87CEEB;
   color: #87CEEB;
+  transform: translateY(-1px);
 }
 
 /* 搜索底部 */
 .search-footer {
   padding: 16px 20px;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(12, 122, 185, 0.548);
+  backdrop-filter: blur(10px);
 }
 
 .search-shortcuts {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: var(--text-primary);
+  color: #fff;
   opacity: 0.6;
 }
 
@@ -538,14 +557,15 @@ onUnmounted(() => {
 }
 
 kbd {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
   padding: 2px 6px;
   font-family: monospace;
   font-size: 11px;
-  color: var(--text-primary);
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.1);
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* 暗色主题适配 */
@@ -603,42 +623,42 @@ kbd {
     max-height: 80vh;
     margin: 0 10px;
   }
-  
+
   .search-input-wrapper {
     padding: 16px;
   }
-  
+
   .search-input {
     padding: 10px 16px 10px 40px;
     font-size: 14px;
   }
-  
+
   .search-icon {
-    left: 16px;
+    left: 30px;
     font-size: 16px;
   }
-  
+
   .clear-btn {
     right: 16px;
   }
-  
+
   .search-results {
     padding: 16px;
   }
-  
+
   .result-title {
     font-size: 16px;
   }
-  
+
   .search-snippet {
     font-size: 13px;
   }
-  
+
   .search-meta {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .search-shortcuts {
     flex-direction: column;
     gap: 8px;
