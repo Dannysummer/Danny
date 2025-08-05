@@ -1,0 +1,646 @@
+/* 共享Markdown样式文件 */
+/* 提取自ArticleContent.vue，用于所有需要渲染Markdown内容的组件 */
+
+.markdown-content {
+  color: var(--text-primary);
+  line-height: 2;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  font-family: 'ZhuZiAWan', sans-serif;
+}
+
+.markdown-content strong {
+  font-weight: 900;
+  color: rgb(0, 217, 255);
+  text-shadow: 0 0 10px rgba(0, 168, 255, 0.3);
+  display: inline-block;
+  transition: all 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.markdown-content strong:hover {
+  color: rgb(0, 238, 255);
+  text-shadow: 0 0 8px rgb(0, 170, 255);
+}
+
+.markdown-content b {
+  font-weight: 900;
+  color: rgb(0, 217, 255);
+  text-shadow: 0 0 10px rgba(0, 168, 255, 0.3);
+  display: inline-block;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.markdown-content h1, 
+.markdown-content h2, 
+.markdown-content h3, 
+.markdown-content h4, 
+.markdown-content h5, 
+.markdown-content h6 {
+  color: var(--text-primary);
+  margin: 0.1em 0 1em;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.markdown-content h1 {
+  font-size: 3rem;
+  text-align: left;
+}
+
+.markdown-content h2 {
+  font-size: 2.5em;
+  padding-bottom: 0.2em;
+  border-bottom: 2px solid var(--border-color);
+  position: relative;
+  border-radius: 1px;
+}
+
+.markdown-content h2::before {
+  content: "§";
+  color: var(--theme-color);
+  margin-right: 0.4rem;
+  font-size: 0.9em;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.markdown-content h2:hover::before {
+  transform: rotate(180deg) translateY(-5px);
+  color: rgb(0, 238, 255);
+  text-shadow: 0 0 8px rgb(0, 170, 255);
+}
+
+.markdown-content h2:hover {
+  border-color: var(--theme-color);
+  box-shadow: 0 0 20px rgba(0,168,255,0.1);
+}
+
+.markdown-content h3 {
+  font-size: 2.4rem;
+  margin: 1em 0;
+  text-align: justify;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.markdown-content h3::before {
+  content: "";
+  margin-top: 4px;
+  left: 0;
+  width: 8px;
+  height: 28px;
+  background: var(--theme-color);
+  border-radius: 2px;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.markdown-content h3:hover::before {
+  height: 35px;
+  background: rgb(0, 238, 255);
+  box-shadow: 0 0 8px rgb(0, 170, 255);
+}
+
+.markdown-content h4 {
+  font-size: 2.0rem;
+  margin: 1em 0;
+  text-align: justify;
+}
+
+.markdown-content h5 {
+  font-size: 1.5rem;
+  margin: 1em 0;
+  text-align: justify;
+}
+
+.markdown-content h6 {
+  font-size: 1.35rem;
+  margin: 1em 0;
+  text-align: justify;
+}
+
+.markdown-content p {
+  font-size: 1.5rem;
+  margin: 1.5em 0;
+  text-align: justify;
+  line-height: 1.6;
+}
+
+.markdown-content code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.9em;
+  margin: 0 0.2em;
+  color: #87CEEB;
+}
+
+.markdown-content pre {
+  background: var(--code-block-bg);
+  padding: 0;
+  border-radius: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 1em 0;
+  position: relative;
+  counter-reset: line;
+  border: 1px solid rgba(255,255,255,0);
+  transition: all 0.3s ease-in-out;
+}
+
+.markdown-content pre::-webkit-scrollbar {
+  height: 6px;
+}
+
+.markdown-content pre::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.markdown-content pre::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-color);
+}
+
+.markdown-content pre:hover {
+  border-color: var(--theme-color);
+  box-shadow: 0 0 20px rgba(0,168,255,0.1);
+}
+
+.markdown-content pre .code-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 35px;
+  background: rgba(0, 120, 168, 0.89);
+  border-radius: 0px 0px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 15px;
+  z-index: 1;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.markdown-content pre .language-label {
+  font-family: 'ZhuZiAWan', sans-serif;
+  color: #888;
+  justify-content: left;
+  align-items: left;
+  font-size: 1.5em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  color: var(--theme-color);
+  gap: 10px;
+}
+
+.markdown-content pre .language-label .code-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.markdown-content pre .language-label .code-dots .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.markdown-content pre .language-label .code-dots .dot.dot-red {
+  background: #ff5f56;
+}
+
+.markdown-content pre .language-label .code-dots .dot.dot-yellow {
+  background: #ffbd2e;
+}
+
+.markdown-content pre .language-label .code-dots .dot.dot-green {
+  background: #27c93f;
+}
+
+.markdown-content pre .header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.markdown-content pre .copy-button {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 1.2em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.3s ease;
+  position: relative;
+  font-family: 'ZhuZiAWan', sans-serif;
+}
+
+.markdown-content pre .copy-button::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  margin-left: 2px;
+  width: 0;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--theme-color);
+  transition: all 0.3s ease;
+  box-shadow: 0 0 8px var(--theme-color);
+}
+
+.markdown-content pre .copy-button:hover {
+  color: var(--theme-color);
+}
+
+.markdown-content pre .copy-button:hover::after {
+  border-radius: 2px;
+  width: 82%;
+}
+
+.markdown-content pre .copy-button .iconify {
+  font-size: 1.2em;
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.markdown-content pre .code-content {
+  margin: -35px 0px;
+  padding: 0px 0px 0px 4em;
+  position: relative;
+  font-family: 'Fira Code', monospace;
+}
+
+.markdown-content pre .code-content::before {
+  content: '';
+  position: absolute;
+  left: 3em;
+  top: -10%;
+  height: 120%;
+  bottom: 0;
+  border-left: 2px solid #333;
+}
+
+.markdown-content pre .hljs-line {
+  display: block;
+  padding: 0 0.5em;
+  position: relative;
+  line-height: 0.5;
+  margin: 0px 0;
+}
+
+.markdown-content pre .hljs-line::before {
+  counter-increment: line;
+  content: counter(line);
+  position: absolute;
+  left: -4em;
+  width: 3em;
+  text-align: right;
+  color: #666;
+  padding-right: 1em;
+  user-select: none;
+  line-height: 0.5;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  border-radius: 8px;
+  display: block;
+  margin: 1em auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  cursor: zoom-in;
+  transition: transform 0.3s ease;
+}
+
+.markdown-content img:hover {
+  transform: scale(1.02);
+}
+
+.markdown-content blockquote {
+  border-left: 8px solid var(--theme-color);
+  padding-left: 1em;
+  margin: 1em 0;
+  background: var(--quote-bg);
+  padding: 1em;
+  border-radius: 4px;
+  color: var(--text-primary);
+  position: relative;
+}
+
+.markdown-content blockquote::before {
+  content: "\201C";
+  font-size: 2em;
+  color: var(--text-primary);
+  opacity: 0.6;
+  position: absolute;
+  top: 0;
+  left: 8px;
+}
+
+.markdown-content a {
+  color: var(--link-color);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--link-border-color);
+  transition: all 0.3s ease;
+}
+
+.markdown-content a:hover {
+  border-bottom-style: solid;
+  color: var(--link-hover-color);
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  background: rgba(52, 53, 65, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.markdown-content table th, 
+.markdown-content table td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  text-align: left;
+  transition: all 0.3s ease;
+}
+
+.markdown-content table th {
+  background: rgba(0, 168, 255, 0.1);
+  font-weight: 600;
+  color: var(--theme-color);
+  font-size: 1.1em;
+  text-shadow: 0 0 10px rgba(0, 168, 255, 0.3);
+}
+
+.markdown-content table tr {
+  transition: all 0.3s ease;
+}
+
+.markdown-content table tr:hover {
+  background: rgba(0, 168, 255, 0.1);
+}
+
+.markdown-content table tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.markdown-content table tr:nth-child(even):hover {
+  background: rgba(0, 168, 255, 0.1);
+}
+
+.markdown-content table td {
+  color: var(--text-primary);
+}
+
+.markdown-content ul, 
+.markdown-content ol {
+  padding-left: 2em;
+  margin: 0.8em 0;
+  list-style: none;
+  font-size: 1.3em;
+}
+
+.markdown-content ol {
+  counter-reset: item;
+}
+
+.markdown-content ol li {
+  position: relative;
+  margin: 0.5em 0;
+  padding-left: 0;
+  display: flex;
+  transition: all 0.3s ease;
+}
+
+.markdown-content ol li::before {
+  counter-increment: item;
+  content: counter(item) ".";
+  flex: 0 0 1.5em;
+  margin-right: 0.5em;
+  text-align: right;
+  color: var(--theme-color);
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(0, 168, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.markdown-content ol li:hover {
+  transform: translateX(10px);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.markdown-content ol li:hover::before {
+  color: rgb(0, 238, 255);
+  text-shadow: 0 0 15px rgba(0, 238, 255, 0.8);
+  transform: scale(1.2);
+}
+
+.markdown-content ul li {
+  position: relative;
+  margin: 0.5em 0;
+  padding-left: 2em;
+  line-height: 1.5;
+  transition: all 0.3s ease;
+}
+
+.markdown-content ul li::before {
+  content: '';
+  position: absolute;
+  left: 0.8em;
+  top: 0.8em;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  background: var(--theme-color);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(0, 168, 255, 0.5);
+  transition: all 0.3s ease;
+}
+
+.markdown-content ul li::after {
+  content: '';
+  position: absolute;
+  left: 0.8em;
+  top: 0.75em;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--theme-color);
+  opacity: 0;
+  pointer-events: none;
+  animation: ripple 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ripple {
+  0% {
+    transform: translateY(-50%) scale(1);
+    opacity: 0;
+  }
+  25% {
+    transform: translateY(-50%) scale(1.5);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-50%) scale(2);
+    opacity: 0.3;
+  }
+  75% {
+    transform: translateY(-50%) scale(2.5);
+    opacity: 0.1;
+  }
+  100% {
+    transform: translateY(-50%) scale(3);
+    opacity: 0;
+  }
+}
+
+.markdown-content ul li:hover {
+  transform: translateX(10px);
+}
+
+.markdown-content ul li:hover::before {
+  background: rgb(0, 238, 255);
+  box-shadow: 0 0 15px rgba(0, 238, 255, 0.8);
+}
+
+.markdown-content ul li:hover::after {
+  border-color: rgba(0, 238, 255, 0.6);
+}
+
+/* 暗色主题适配 */
+:root[class='dark-theme'] .markdown-content {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:root[class='dark-theme'] .markdown-content h1, 
+:root[class='dark-theme'] .markdown-content h2, 
+:root[class='dark-theme'] .markdown-content h3, 
+:root[class='dark-theme'] .markdown-content h4, 
+:root[class='dark-theme'] .markdown-content h5, 
+:root[class='dark-theme'] .markdown-content h6 {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+:root[class='dark-theme'] .markdown-content p {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:root[class='dark-theme'] .markdown-content blockquote {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:root[class='dark-theme'] .markdown-content blockquote::before {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+:root[class='dark-theme'] .markdown-content table td {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:root[class='dark-theme'] .markdown-content code {
+  background: rgba(135, 206, 235, 0.1);
+  color: #87CEEB;
+}
+
+:root[class='dark-theme'] .markdown-content pre {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(135, 206, 235, 0.2);
+}
+
+:root[class='dark-theme'] .markdown-content pre .code-header {
+  background: rgba(20, 20, 20, 0.9);
+  border-bottom: 1px solid rgba(135, 206, 235, 0.2);
+}
+
+:root[class='dark-theme'] .markdown-content pre .code-content::before {
+  border-left: 2px solid rgba(135, 206, 235, 0.3);
+}
+
+:root[class='dark-theme'] .markdown-content pre .hljs-line::before {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+:root[class='dark-theme'] .markdown-content strong, 
+:root[class='dark-theme'] .markdown-content b {
+  color: #87CEEB;
+  text-shadow: 0 0 10px rgba(135, 206, 235, 0.3);
+}
+
+:root[class='dark-theme'] .markdown-content strong:hover, 
+:root[class='dark-theme'] .markdown-content b:hover {
+  color: #ADD8E6;
+  text-shadow: 0 0 8px rgba(135, 206, 235, 0.5);
+}
+
+:root[class='dark-theme'] .markdown-content h2::before {
+  color: #87CEEB;
+}
+
+:root[class='dark-theme'] .markdown-content h2:hover::before {
+  color: #ADD8E6;
+  text-shadow: 0 0 8px rgba(135, 206, 235, 0.5);
+}
+
+:root[class='dark-theme'] .markdown-content h3::before {
+  background: #87CEEB;
+}
+
+:root[class='dark-theme'] .markdown-content h3:hover::before {
+  background: #ADD8E6;
+  box-shadow: 0 0 8px rgba(135, 206, 235, 0.5);
+}
+
+:root[class='dark-theme'] .markdown-content ul li::before {
+  background: #87CEEB;
+  box-shadow: 0 0 10px rgba(135, 206, 235, 0.5);
+}
+
+:root[class='dark-theme'] .markdown-content ul li:hover::before {
+  background: #ADD8E6;
+  box-shadow: 0 0 15px rgba(135, 206, 235, 0.8);
+}
+
+:root[class='dark-theme'] .markdown-content ol li::before {
+  color: #87CEEB;
+  text-shadow: 0 0 10px rgba(135, 206, 235, 0.3);
+}
+
+:root[class='dark-theme'] .markdown-content ol li:hover::before {
+  color: #ADD8E6;
+  text-shadow: 0 0 15px rgba(135, 206, 235, 0.8);
+}
+
+:root[class='dark-theme'] .markdown-content table th {
+  background: rgba(135, 206, 235, 0.1);
+  color: #87CEEB;
+  text-shadow: 0 0 10px rgba(135, 206, 235, 0.3);
+}
+
+:root[class='dark-theme'] .markdown-content table tr:hover {
+  background: rgba(135, 206, 235, 0.1);
+}
+
+:root[class='dark-theme'] .markdown-content a {
+  color: #87CEEB;
+  border-bottom-color: rgba(135, 206, 235, 0.3);
+}
+
+:root[class='dark-theme'] .markdown-content a:hover {
+  color: #ADD8E6;
+  border-bottom-color: #87CEEB;
+}

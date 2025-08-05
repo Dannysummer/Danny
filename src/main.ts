@@ -7,6 +7,7 @@ import router from './router'
 import './assets/styles/theme.css'
 import './assets/styles/fonts.css'
 import './assets/styles/config-based.css'
+import './styles/markdown.css'
 import { createPinia } from 'pinia'
 import type { Engine } from "tsparticles-engine"
 import '@fortawesome/fontawesome-free/css/all.min.css'

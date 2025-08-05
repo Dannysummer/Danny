@@ -124,9 +124,7 @@
           <span>返回友链列表</span>
         </button>
         <h2 class="rules-title">Dannyの友人帐公约</h2>
-        <div class="rules-body">
-          <!-- 这里放公约内容 -->
-        </div>
+        <div class="rules-body markdown-content" v-html="rulesContent"></div>
       </div>
     </div>
 
@@ -390,6 +388,7 @@ watch(currentCategory, async (newCategory) => {
 
 const showLetterhead = ref(false)
 const currentView = ref<'friends' | 'rules'>('friends')
+const rulesContent = ref('')
 
 // 修改卡片点击事件
 const handleCardClick = (url: string) => {
@@ -398,6 +397,55 @@ const handleCardClick = (url: string) => {
   // 在新标签页中打开链接
   window.open(fullUrl, '_blank', 'noopener noreferrer')
 }
+
+// 加载公约内容
+const loadRulesContent = async () => {
+  try {
+    const response = await fetch('/friends/rules/Dannyの友人帐公约.md')
+    if (!response.ok) {
+      throw new Error('加载公约文件失败')
+    }
+    const markdownText = await response.text()
+    
+    // 简单的Markdown到HTML转换
+    const htmlContent = convertMarkdownToHtml(markdownText)
+    rulesContent.value = htmlContent
+  } catch (error) {
+    console.error('加载公约内容失败:', error)
+    rulesContent.value = '<p>加载公约内容失败，请稍后再试。</p>'
+  }
+}
+
+// 简单的Markdown转换函数
+const convertMarkdownToHtml = (markdown: string) => {
+  return markdown
+    // 标题
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    // 粗体
+    .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+    // 斜体
+    .replace(/\*(.*)\*/gim, '<em>$1</em>')
+    // 链接
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank">$1</a>')
+    // 代码块
+    .replace(/```([\s\S]*?)```/gim, '<pre><code>$1</code></pre>')
+    // 行内代码
+    .replace(/`([^`]+)`/gim, '<code>$1</code>')
+    // 无序列表
+    .replace(/^- (.*$)/gim, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    // 换行
+    .replace(/\n/gim, '<br>')
+}
+
+// 监听视图变化，当切换到规则页面时加载内容
+watch(currentView, (newView) => {
+  if (newView === 'rules' && !rulesContent.value) {
+    loadRulesContent()
+  }
+})
 </script>
 
 <style scoped>
@@ -1353,8 +1401,11 @@ const handleCardClick = (url: string) => {
 }
 
 .rules-body {
-  color: var(--text-primary);
-  line-height: 1.6;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 @keyframes fadeIn {
