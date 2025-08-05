@@ -4,7 +4,9 @@
     <!-- Banner 区域 -->
     <div class="friends-banner">
       <h1 class="banner-title">友情链接</h1>
-      <p class="banner-subtitle">这里的每个站点，都耐人寻味......</p>
+      <p class="banner-subtitle">来成为我的朋友吧！
+        <span class="my-face">ღゝ◡╹)ノ❤️</span>
+      </p>
     </div>
 
     <!-- 友链容器 -->
@@ -399,6 +401,8 @@ const handleCardClick = (url: string) => {
 </script>
 
 <style scoped>
+/* shakeFace动画 */
+@import '../styles/shakeface.css';
 
 .friends-page {
   min-height: 100vh;
@@ -1372,4 +1376,5 @@ const handleCardClick = (url: string) => {
 :root[class='dark-theme'] .back-btn:hover {
   color: #87CEEB;
 }
+
 </style> 
