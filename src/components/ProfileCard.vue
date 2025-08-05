@@ -10,28 +10,28 @@
     <div class="profile-content">
       <!-- 头像区域 -->
       <div class="avatar-wrapper">
-        <img src="../assets/logo.png" alt="头像" class="avatar" />
+        <img :src="userStore.userInfo?.avatar || '../assets/logo.png'" alt="头像" class="avatar" />
       </div>
       
       <!-- 用户信息 -->
       <div class="user-info">
-        <h2 class="username">Dansela</h2>
-        <p class="subtitle">Danny</p>
+        <h2 class="username">{{ userStore.userInfo?.username || 'Dansela' }}</h2>
+        <p class="subtitle">{{ userStore.userInfo?.bio || 'Danny' }}</p>
       </div>
       
       <!-- 统计数据 -->
       <div class="stats">
         <div class="stat-item">
           <span class="stat-label">文章</span>
-          <span class="stat-value">60</span>
+          <span class="stat-value">{{ userStats.articles }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">标签</span>
-          <span class="stat-value">80</span>
+          <span class="stat-value">{{ userStats.tags }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">分类</span>
-          <span class="stat-value">3</span>
+          <span class="stat-value">{{ userStats.categories }}</span>
         </div>
       </div>
       
@@ -96,9 +96,45 @@
 
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useUserStore } from '../stores/user'
 
+const userStore = useUserStore()
 const showMoreSocial = ref(false)
+
+// 用户统计信息
+const userStats = ref({
+  articles: 0,
+  tags: 0,
+  categories: 0
+})
+
+// 组件挂载时获取用户数据
+onMounted(async () => {
+  // 如果用户已登录但尚未加载详细信息
+  if (userStore.isLoggedIn && userStore.userInfo) {
+    // 获取用户详细信息和排名
+    await userStore.fetchUserProfile()
+    
+    // 获取用户排名
+    if (userStore.fetchUserRank) {
+      await userStore.fetchUserRank()
+    }
+    
+    // 这里可以添加获取用户统计数据的逻辑
+    // 示例：通过API获取用户的文章、标签和分类数量
+    try {
+      // 这里应该是实际的API调用，目前使用模拟数据
+      userStats.value = {
+        articles: 60,
+        tags: 80,
+        categories: 3
+      }
+    } catch (error) {
+      console.error('获取用户统计信息失败:', error)
+    }
+  }
+})
 </script>
 
 <style scoped>

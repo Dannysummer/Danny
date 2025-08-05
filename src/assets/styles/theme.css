@@ -26,7 +26,7 @@ body {
 }
 
 .nav-content {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
   height: 100%;
   display: flex;
@@ -144,6 +144,22 @@ body {
   --card-bg-light: rgba(255, 255, 255, 0.7); /* 日间模式卡片背景 */
   --card-shadow-light: 0 8px 32px rgba(0, 0, 0, 0.1); /* 日间模式阴影 */
   --card-border-light: 1px solid rgba(255, 255, 255, 0.4); /* 日间模式边框 */
+  
+  /* 右键菜单样式变量 - 亮色主题 */
+  --context-menu-bg: rgba(255, 255, 255, 0.95);
+  --context-menu-color: #333;
+  --context-menu-hover-bg: rgba(0, 0, 0, 0.05);
+  --context-menu-shortcut-color: #777;
+  --context-menu-divider-color: rgba(0, 0, 0, 0.1);
+  --context-menu-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  
+  /* 主题颜色 */
+  --primary-color: #3498DB;
+  --primary-color-rgb: 76, 132, 255;
+  --primary-color-hover: #87CEEB;
+  --secondary-color: #42b883;
+  --text-primary: #333;
+  --text-secondary: #666;
 }
 
 .dark-theme {
@@ -152,4 +168,20 @@ body {
   --card-bg-dark: rgba(255, 255, 255, 0.1); /* 夜间模式保持原样 */
   --card-shadow-dark: none;
   --card-border-dark: 1px solid rgba(255, 255, 255, 0.1);
+  
+  /* 右键菜单样式变量 - 暗色主题 */
+  --context-menu-bg: rgba(40, 40, 40, 0.95);
+  --context-menu-color: #f0f0f0;
+  --context-menu-hover-bg: rgba(255, 255, 255, 0.1);
+  --context-menu-shortcut-color: #aaa;
+  --context-menu-divider-color: rgba(255, 255, 255, 0.1);
+  --context-menu-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  
+  /* 暗色主题颜色 */
+  --primary-color: #5c94ff;
+  --primary-color-rgb: 92, 148, 255;
+  --primary-color-hover: #6ca1ff;
+  --secondary-color: #42d392;
+  --text-primary: #f0f0f0;
+  --text-secondary: #ccc;
 } 

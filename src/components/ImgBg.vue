@@ -52,7 +52,7 @@ import { onMounted, ref, onUnmounted, computed, nextTick } from 'vue'
 import gsap from 'gsap'
 import { Flip } from 'gsap/Flip'
 import Lenis from '@studio-freight/lenis'
-import type { ImgBgRow, ImgBgConfig } from '../types/imgbg'
+import type { ImgBgRow, ImgBgConfig } from '../types'
 import type { AlbumImage } from '../data/albumImages'
 
 gsap.registerPlugin(Flip)

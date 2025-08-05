@@ -1,5 +1,6 @@
 <template>
   <div class="friends-page">
+
     <!-- Banner 区域 -->
     <div class="friends-banner">
       <h1 class="banner-title">友情链接</h1>
@@ -26,11 +27,11 @@
       <!-- 分类标签 -->
       <div v-if="currentView === 'friends'" class="category-tabs">
         <button 
-          v-for="(name, key) in categoryNames" 
+          v-for="(name, key) in categories" 
           :key="key"
           class="category-tab"
           :class="{ active: currentCategory === key }"
-          @click="currentCategory = key"
+          @click="changeCategory(key as any)"
         >
           {{ name }}
         </button>
@@ -41,7 +42,7 @@
         <!-- 友链列表 -->
         <template v-if="currentCategory === 'all'">
           <div v-for="(links, category) in groupedFriends" :key="category" class="friend-category">
-            <h2 class="category-header">{{ categoryNames[category as keyof typeof categoryNames] }}</h2>
+            <h2 class="category-header">{{ categories[category] }}</h2>
             <div class="friends-grid">
               <div 
                 v-for="friend in links" 
@@ -77,8 +78,8 @@
         <div v-else class="friend-category">
           <!-- 添加具体分类的标题和副标题 -->
           <div class="category-title-group">
-            <h2 class="category-header">{{ categoryNames[currentCategory as keyof typeof categoryNames] }}</h2>
-            <p class="category-subtitle">在这里遇见志同道合的{{ categoryNames[currentCategory as keyof typeof categoryNames] }}们</p>
+            <h2 class="category-header">{{ categories[currentCategory] }}</h2>
+            <p class="category-subtitle">在这里遇见志同道合的{{ categories[currentCategory] }}们</p>
           </div>
           <div class="friends-grid">
             <div 
@@ -137,29 +138,38 @@
         <HexoLetterhead />
       </div>
     </div>
+
+    <FooterBanner v-if="!$route.meta.hideFooter" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { friends, categoryNames, type FriendLink } from '../data/friends'
+import { categoryNames, type FriendLink } from '../data/friends'
 import HexoLetterhead from '../components/HexoLetterhead.vue'
 import { useThemeStore } from '../stores/theme'  // 导入主题store
+import { config } from '../config/index'
+import FooterBanner from '@/components/FooterBanner.vue'
 
 const themeStore = useThemeStore()
 
-const currentCategory = ref<keyof typeof categoryNames | 'all'>('all')
+// 修正类型定义，使用字符串索引类型
+type CategoryKey = string
+const currentCategory = ref<CategoryKey>('all')
 
-const filteredFriends = computed<FriendLink[]>(() => {
-  if (currentCategory.value === 'all') return friends
-  return friends.filter(friend => friend.category === currentCategory.value)
-})
+const filteredFriends = ref<FriendLink[]>([])
+const categories = ref<Record<string, string>>(categoryNames)
+const isLoading = ref(true)
+const error = ref<string | null>(null)
+
+// 计算友链总数
+// const friendCount = computed(() => filteredFriends.value.length)
 
 // 添加分组逻辑
 const groupedFriends = computed(() => {
   const groups: Record<string, FriendLink[]> = {}
-  friends.forEach(friend => {
+  filteredFriends.value.forEach(friend => {
     if (!groups[friend.category]) {
       groups[friend.category] = []
     }
@@ -171,14 +181,20 @@ const groupedFriends = computed(() => {
 // 存储延迟数据
 const delayMap = ref<Map<string, { delay: number; status: 'loading' | 'success' | 'error' }>>(new Map())
 
-// 测试延迟的函数
+// 测试延迟的函数修改
 const testDelay = async (url: string) => {
+  // 确保URL格式正确
+  let testUrl = url
+  if (!url.startsWith('http')) {
+    testUrl = `https://${url}`
+  }
+  
   const startTime = performance.now()
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 10000)
     
-    await fetch(url, {
+    await fetch(testUrl, {
       mode: 'no-cors',
       signal: controller.signal
     })
@@ -244,12 +260,131 @@ const transitionStyle = computed(() => ({
   transition: 'all 0.3s ease'
 }))
 
-// 在组件挂载时开始测试所有友链延迟
-onMounted(() => {
-  friends.forEach(friend => {
-    testDelay(friend.url)
-  })
-})
+// 直接从API获取友链数据
+const fetchFriendLinks = async () => {
+  try {
+    const response = await fetch(`${config.api.apiUrl}/friend-links`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP错误! 状态: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      const { friends, categoryNames: apiCategoryNames } = data.data;
+      console.log('友链数据:', friends);
+      console.log('分类名称:', apiCategoryNames);
+      
+      // 处理category大小写问题
+      const processedFriends = friends.map((friend: {category: string, [key: string]: any}) => ({
+        ...friend,
+        category: friend.category.toLowerCase() as any
+      }));
+      
+      return { friends: processedFriends, categoryNames: apiCategoryNames };
+    } else {
+      console.error('获取友链失败:', data.message);
+      return null;
+    }
+  } catch (error) {
+    console.error('获取友链出错:', error);
+    throw error;
+  }
+};
+
+// 在组件挂载时获取友链数据
+onMounted(async () => {
+  isLoading.value = true;
+  error.value = null;
+  
+  try {
+    const result = await fetchFriendLinks();
+    if (result) {
+      filteredFriends.value = result.friends;
+      if (result.categoryNames) {
+        categories.value = result.categoryNames;
+      }
+      
+      // 获取数据后开始测试友链延迟
+      filteredFriends.value.forEach(friend => {
+        testDelay(friend.url);
+      });
+    }
+  } catch (err: any) {
+    console.error('加载友链失败:', err);
+    error.value = err.message || '加载友链失败';
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+// 按分类筛选友链的函数修改
+const changeCategory = (category: CategoryKey) => {
+  currentCategory.value = category
+}
+
+// 监听分类变化
+watch(currentCategory, async (newCategory) => {
+  if (newCategory === 'all') {
+    try {
+      const result = await fetchFriendLinks()
+      if (result) {
+        filteredFriends.value = result.friends
+      }
+    } catch (err) {
+      console.error('重新加载所有友链失败:', err)
+    }
+    return
+  }
+  
+  isLoading.value = true;
+  error.value = null;
+  
+  try {
+    const response = await fetch(`${config.api.apiUrl}/friend-links/category/${newCategory}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP错误! 状态: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      const categoryFriends = data.data.map((friend: any) => ({
+        ...friend,
+        category: friend.category.toLowerCase() as any
+      }));
+      
+      filteredFriends.value = categoryFriends;
+      
+      // 获取数据后测试这些新友链的延迟
+      categoryFriends.forEach((friend: FriendLink) => {
+        if (!delayMap.value.has(friend.url)) {
+          testDelay(friend.url);
+        }
+      });
+    } else {
+      console.error('获取分类友链失败:', data.message);
+      error.value = data.message || '获取分类友链失败';
+    }
+  } catch (err: any) {
+    console.error('加载分类友链失败:', err);
+    error.value = err.message || '加载分类友链失败';
+  } finally {
+    isLoading.value = false;
+  }
+});
 
 const showLetterhead = ref(false)
 const currentView = ref<'friends' | 'rules'>('friends')
@@ -264,6 +399,7 @@ const handleCardClick = (url: string) => {
 </script>
 
 <style scoped>
+
 .friends-page {
   min-height: 100vh;
   background: var(--bg-primary);
@@ -318,7 +454,7 @@ const handleCardClick = (url: string) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.3);  /* 黑色遮罩 */
+  background: rgba(0, 0, 0, 0.3); 
   z-index: 0;
 }
 

@@ -54,7 +54,7 @@
           </div>
           <div class="info-line">
             <Icon icon="mdi:ip-network" />
-            <span style="text-align: left;">网络IP为：<span class="highlight">{{ visitorIP }}</span></span>
+            <span style="text-align: left;">网络IP为：<span class="highlight IP-text">{{ visitorIP }}</span></span>
           </div>
           <div class="info-line">
             <Icon icon="mdi:weather-sunny" />
@@ -376,6 +376,31 @@ onMounted(() => {
   color: #3498db;
   font-weight: 500;
   text-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+}
+
+/* .IP-text::before{
+  content: '';
+  position: absolute; 
+  width: 50%;
+  height: 8%;
+  border-radius: 10px;
+  background: #3498db;
+  backdrop-filter: blur(50px);
+} */
+
+.IP-text{
+  text-shadow: 0 0 15px rgba(52, 152, 219, 0.8);
+  filter: blur(5px);
+  transition: all 0.3s ease;
+  opacity: 0.7;
+  letter-spacing: 1px;
+}
+
+.IP-text:hover{
+  text-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+  filter: blur(0);
+  opacity: 1;
+  /* letter-spacing: normal; */
 }
 
 /* 卡片基础样式 */

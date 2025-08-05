@@ -26,7 +26,7 @@ import { onMounted, ref, onUnmounted } from 'vue'
 import gsap from 'gsap'
 import { Flip } from 'gsap/Flip'
 import Lenis from '@studio-freight/lenis'
-import type { ImgBgRow, ImgBgConfig } from '../types/imgbg'
+import type { ImgBgRow, ImgBgConfig } from '../types'
 
 gsap.registerPlugin(Flip)
 

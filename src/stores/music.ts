@@ -80,6 +80,12 @@ export const useMusicStore = defineStore('music', () => {
       artist: '汪苏泷',
       cover: '/music/cover/music.png',
       src: '/music/mp3/晴·间奏 汪苏泷.mp3'
+    },
+    {
+      title: '那些我尚未知道的美丽',
+      artist: '华晨宇',
+      cover: '/music/cover/music.png',
+      src: '/music/mp3/那些我尚未知道的美丽 - 华晨宇.mp3'
     }
     // 可以添加更多歌曲...
   ]

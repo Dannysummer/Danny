@@ -1,7 +1,15 @@
 <template>
   <div class="home">
+    <!-- 添加视频背景 -->
+    <div class="video-background">
+      <video class="background-video" autoplay loop muted playsinline>
+        <source src="/vedio/夏日的风.mp4" type="video/mp4">
+      </video>
+      <div class="overlay"></div>
+    </div>
+
     <Banner />
-    
+
     <!-- 过渡 banner -->
     <div class="transition-banner">
       <div class="transition-content">
@@ -31,7 +39,7 @@
                 <img :src="dividerImage" alt="divider" class="divider-image" />
               </div>
             </div>
-            
+
             <div class="music-info">
               <img :src="coverImage" alt="music cover" class="music-cover" />
               <div class="music-details">
@@ -46,21 +54,19 @@
                   </div>
                 </div>
               </div>
+              <div class="music-view">
+                <canvas ref="visualizerCanvas" class="audio-visualizer"></canvas>
+              </div>
+
             </div>
             <div class="player-controls">
               <div class="progress-container">
                 <span class="time">{{ formatTime(musicStore.currentTime) }}</span>
-                <div class="progress-bar" 
-                    @mousedown="startDragging"
-                    @mousemove="handleDragging"
-                    @mouseup="stopDragging"
-                    @mouseleave="stopDragging"
-                    @click="handleProgressClick">
+                <div class="progress-bar" @mousedown="startDragging" @mousemove="handleDragging" @mouseup="stopDragging"
+                  @mouseleave="stopDragging" @click="handleProgressClick">
                   <div class="progress" :style="{ width: `${progress}%` }"></div>
-                  <div class="progress-handle" 
-                        :style="{ left: `${progress}%` }"
-                        v-show="isDragging || isHovering"
-                  ></div>
+                  <div class="progress-handle" :style="{ left: `${progress}%` }" v-show="isDragging || isHovering">
+                  </div>
                 </div>
                 <span class="time">{{ formatTime(musicStore.duration) }}</span>
               </div>
@@ -80,14 +86,8 @@
                   <button class="volume-btn" @click="toggleMute">
                     <Icon :icon="volumeIcon" />
                   </button>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="100" 
-                    v-model="volume" 
-                    @input="handleVolumeChange"
-                    class="volume-slider"
-                  />
+                  <input type="range" min="0" max="100" v-model="volume" @input="handleVolumeChange"
+                    class="volume-slider" />
                 </div>
                 <div class="extra-controls">
                   <button class="control-btn mode-btn" @click="togglePlayMode" :title="playModeTitle">
@@ -101,7 +101,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 左右布局区域 -->
         <div class="content-layout">
           <!-- 左侧功能区 -->
@@ -140,19 +140,53 @@
             <!-- 友链 -->
             <div class="friend-links">
               <h3 class="section-title">友链</h3>
-              <!-- 友链内容 -->
+              <div class="car-container">
+                <img class="car" src="/gif/car.gif" alt="行驶的小车动画">
+              </div>
+              <div class="home-friends-grid">
+                <div v-for="friend in topFriends" :key="friend.name" class="home-friend-card"
+                  @click="openFriendLink(friend.url)">
+                  <div class="friend-avatar-container">
+                    <img :src="friend.avatar" :alt="friend.name" class="friend-avatar">
+                  </div>
+                  <div class="friend-info">
+                    <h4 class="friend-name">{{ friend.name }}</h4>
+                    <!-- <p class="friend-desc">{{ friend.description }}</p> -->
+                  </div>
+                </div>
+              </div>
+              <div class="view-more-friends">
+                <router-link to="/friends" class="more-friends-link">
+                  <span>查看更多友链</span>
+                  <Icon icon="material-symbols:arrow-forward" class="arrow-icon" />
+                </router-link>
+              </div>
             </div>
 
             <!-- 最新文章列表 -->
             <div class="recent-posts">
               <h3 class="section-title">最新文章</h3>
               <div class="post-list">
-                <div class="post-item" v-for="post in recentPosts" :key="post.id">
-                  <img :src="post.cover" :alt="post.title" class="post-thumb" />
+                <!-- 加载状态 -->
+                <div v-if="isLoadingRecentPosts" class="post-loading">
+                  <div class="mini-spinner"></div>
+                  <span>加载中...</span>
+                </div>
+
+                <!-- 文章列表 -->
+                <router-link v-else-if="recentPosts.length > 0" v-for="post in recentPosts" :key="post.id"
+                  :to="{ name: 'article', params: { id: post.id } }" class="post-item">
+                  <img :src="post.coverImage || post.cover || '/articles/cover/1.jpg'" :alt="post.title"
+                    class="post-thumb" />
                   <div class="post-info">
                     <h4 class="post-title">{{ post.title }}</h4>
-                    <span class="post-date">{{ post.date }}</span>
+                    <span class="post-date">{{ formatDate(post.publishDate || post.createTime) }}</span>
                   </div>
+                </router-link>
+
+                <!-- 空状态 -->
+                <div v-else class="post-empty">
+                  <span>暂无最新文章</span>
                 </div>
               </div>
             </div>
@@ -181,10 +215,8 @@
             <div class="latest-whispers">
               <h3 class="section-title">最新树洞</h3>
               <div class="whispers-list">
-                <div v-for="(whisper, index) in latestWhispers" 
-                     :key="index" 
-                     class="whisper-item"
-                     :class="{ 'new': whisper.isNew }">
+                <div v-for="(whisper, index) in latestWhispers" :key="index" class="whisper-item"
+                  :class="{ 'new': whisper.isNew }">
                   <div class="whisper-content">{{ whisper.content }}</div>
                   <div class="whisper-meta">
                     <span class="whisper-time">{{ whisper.time }}</span>
@@ -203,46 +235,59 @@
               </div>
             </div>
           </div>
-          
+
           <!-- 文章列表区域 -->
           <div class="articles-container">
-            <article v-for="(article, index) in featuredArticles" 
-                     :key="article.id" 
-                     class="featured-article"
-                     :class="{ 'image-right': index % 2 === 1 }"
-                     @mousemove="handleMouseMove"
-                     @mouseleave="handleMouseLeave"
-                     ref="articleRefs">
-              <div class="article-cover" :style="{ backgroundImage: `url(${article.cover})` }">
+            <!-- 加载状态 -->
+            <div v-if="isLoadingArticles" class="loading-state">
+              <div class="loading-spinner"></div>
+              <span class="loading-text">正在加载精选文章...</span>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-else-if="featuredArticles.length === 0" class="empty-state">
+              <div class="empty-icon">📰</div>
+              <span class="empty-text">暂无精选文章</span>
+              <span class="api-hint">请实现 API: GET /api/articles/recent</span>
+            </div>
+
+            <!-- 文章列表 -->
+            <article v-else v-for="(article, index) in featuredArticles" :key="article.id" class="featured-article"
+              :class="{ 'image-right': index % 2 === 1 }" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave"
+              ref="articleRefs">
+              <div class="article-cover"
+                :style="{ backgroundImage: `url(${article.coverImage || article.cover || '/articles/cover/1.jpg'})` }">
               </div>
               <div class="article-content">
                 <div class="article-meta">
                   <span class="article-category">{{ article.category }}</span>
-                  <span class="article-date">{{ article.date }}</span>
+                  <span class="article-date">{{ formatDate(article.publishDate || article.createTime) }}</span>
                 </div>
                 <h3 class="article-title">{{ article.title }}</h3>
-                <p class="article-summary">{{ article.summary }}</p>
+                <p class="article-summary">{{ article.aiSummary || article.excerpt || '暂无摘要...' }}</p>
                 <div class="article-footer">
                   <div class="article-tags">
                     <span v-for="tag in article.tags" :key="tag" class="tag">{{ tag }}</span>
                   </div>
-                  <router-link :to="`/article/${article.id}`" class="read-more">
+                  <router-link :to="{ name: 'article', params: { id: article.id } }" class="read-more">
                     阅读全文
                     <Icon icon="material-symbols:arrow-forward" class="arrow-icon" />
                   </router-link>
                 </div>
               </div>
             </article>
-          </div>
-        </div>
-      </div>
-      
+            
       <div class="view-more">
         <router-link to="/archive" class="view-more-link">
           查看更多文章
           <Icon icon="material-symbols:arrow-forward" class="arrow-icon" />
         </router-link>
       </div>
+          </div>
+          
+        </div>
+      </div>
+
     </div>
     <!-- 添加音乐列表弹出层 -->
     <Transition name="slide-right">
@@ -255,22 +300,14 @@
             </button>
           </div>
           <div class="list-content">
-            <div 
-              v-for="(song, index) in musicStore.playlist" 
-              :key="index"
-              class="list-item"
-              :class="{ 'active': song === musicStore.currentSong }"
-              @click="musicStore.playSong(index)"
-            >
+            <div v-for="(song, index) in musicStore.playlist" :key="index" class="list-item"
+              :class="{ 'active': song === musicStore.currentSong }" @click="musicStore.playSong(index)">
               <div class="song-info">
                 <span class="song-title">{{ song.title }}</span>
                 <span class="song-artist">{{ song.artist }}</span>
               </div>
-              <Icon 
-                v-if="song === musicStore.currentSong" 
-                :icon="musicStore.isPlaying ? 'mdi:volume-high' : 'mdi:volume-off'" 
-                class="playing-icon"
-              />
+              <Icon v-if="song === musicStore.currentSong"
+                :icon="musicStore.isPlaying ? 'mdi:volume-high' : 'mdi:volume-off'" class="playing-icon" />
             </div>
           </div>
         </div>
@@ -280,14 +317,52 @@
     <div class="mode-toast" v-if="showToast" :class="{ 'show': showToast }">
       {{ toastMessage }}
     </div>
+
+    <FooterBanner v-if="!$route.meta.hideFooter" />
   </div>
 </template>
 
 <style scoped>
 .home {
   padding: 0;
-  background-color: #f4f5f5;
   position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* 视频背景相关样式 */
+.video-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.background-video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 115%;
+  /* 扩大尺寸超出屏幕 */
+  height: 115%;
+  /* 扩大尺寸超出屏幕 */
+  object-fit: cover;
+  transform: translate(-50%, -50%) scale(1.00);
+  /* 初始缩放 */
+  transition: transform 0.6s cubic-bezier(0.25, 0.45, 0.45, 0.95);
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1;
 }
 
 .main-content {
@@ -297,6 +372,8 @@
   gap: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  position: relative;
+  z-index: 2;
 }
 
 .article-area {
@@ -397,7 +474,7 @@
 }
 
 .transition-banner {
-  background: url('/background/transition-banner-bg.jpg');
+  background: transparent;
   background-size: cover;
   background-position: center;
   padding: 60px 0;
@@ -405,7 +482,7 @@
   position: relative;
   overflow: hidden;
   z-index: 1;
-  height: 150px;
+  height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -418,8 +495,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.2);
   z-index: 2;
+  backdrop-filter: blur(3px);
 }
 
 .transition-content {
@@ -463,28 +541,26 @@
 
 .title-wrapper::before {
   left: -120%;
-  background: linear-gradient(90deg, 
-    transparent,
-    #87CEEB 20%,
-    #87CEEB 80%,
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      #87CEEB 20%,
+      #87CEEB 80%,
+      transparent);
 }
 
 .title-wrapper::after {
   right: -120%;
-  background: linear-gradient(90deg, 
-    transparent,
-    #87CEEB 20%,
-    #87CEEB 80%,
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      #87CEEB 20%,
+      #87CEEB 80%,
+      transparent);
   transition-delay: 0.2s;
 }
 
 /* 添加额外的装饰线 */
-.title-wrapper > span::before,
-.title-wrapper > span::after {
+.title-wrapper>span::before,
+.title-wrapper>span::after {
   content: '';
   position: absolute;
   top: 50%;
@@ -503,15 +579,15 @@
   opacity: 1;
 }
 
-.transition-banner:hover .title-wrapper > span::before,
-.transition-banner:hover .title-wrapper > span::after {
+.transition-banner:hover .title-wrapper>span::before,
+.transition-banner:hover .title-wrapper>span::after {
   width: 80%;
   opacity: 0.6;
   transition-delay: 0.3s;
 }
 
 .transition-banner:hover .section-title {
-  text-shadow: 
+  text-shadow:
     0 0 10px rgba(135, 206, 235, 0.4),
     0 0 20px rgba(135, 206, 235, 0.3),
     0 0 30px rgba(135, 206, 235, 0.2),
@@ -520,12 +596,13 @@
 }
 
 .transition-banner:hover .title-wrapper {
-  color: #87CEEB;  /* 天蓝色 */
+  color: #87CEEB;
+  /* 天蓝色 */
 }
 
 /* 暗色主题特殊效果 */
 .dark-theme .transition-banner:hover .section-title {
-  text-shadow: 
+  text-shadow:
     0 0 10px rgba(135, 206, 235, 0.6),
     0 0 20px rgba(135, 206, 235, 0.4),
     0 0 30px rgba(135, 206, 235, 0.3),
@@ -534,8 +611,9 @@
 }
 
 .dark-theme .transition-banner:hover .title-wrapper {
-  color: rgb(135, 206, 235);  /* 发光的蓝色 */
-  text-shadow: 
+  color: rgb(135, 206, 235);
+  /* 发光的蓝色 */
+  text-shadow:
     0 0 15px rgba(135, 206, 235, 0.8),
     0 0 25px rgba(135, 206, 235, 0.6),
     0 0 35px rgba(135, 206, 235, 0.4);
@@ -546,8 +624,8 @@
 .title-wrapper,
 .title-wrapper::before,
 .title-wrapper::after,
-.title-wrapper > span::before,
-.title-wrapper > span::after {
+.title-wrapper>span::before,
+.title-wrapper>span::after {
   transition: all 0.8s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
@@ -559,10 +637,9 @@
 }
 
 .featured-articles {
-  background-image: var(--article-bg-image);
+  background: transparent;
   background-size: cover;
   background-position: center 30%;
-  background-attachment: fixed;
   position: relative;
   padding: 60px 20px;
   overflow: hidden;
@@ -575,11 +652,13 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(3px);
   z-index: 0;
 }
 
 .articles-container {
+  width: 100%;
   position: relative;
   z-index: 2;
   max-width: 1200px;
@@ -592,15 +671,15 @@
 .featured-article {
   display: grid;
   grid-template-columns: 38.2fr 61.8fr;
-  background: rgba(var(--bg-primary-rgb), 0.3);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border-radius: 12px;
   overflow: hidden;
   position: relative;
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease;
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.1),
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.2),
     inset 0 0 0 1px rgba(255, 255, 255, 0.2);
   transform-style: preserve-3d;
   perspective: 1000px;
@@ -612,15 +691,13 @@
   inset: 0;
   border-radius: 12px;
   padding: 1px;
-  background: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.1),
-    rgba(255, 255, 255, 0.2)
-  );
-  mask: 
+  background: linear-gradient(45deg,
+      rgba(255, 255, 255, 0.1),
+      rgba(255, 255, 255, 0.2));
+  mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
-  -webkit-mask: 
+  -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
@@ -632,28 +709,26 @@
 
 /* 暗色主题样式 */
 .dark-theme .featured-article {
-  background: rgba(var(--bg-primary-rgb), 0.2);
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .dark-theme .featured-article:hover {
-  box-shadow: 
+  box-shadow:
     0 0 25px rgba(135, 206, 235, 0.2),
     0 0 10px rgba(135, 206, 235, 0.1),
     0 0 5px rgba(135, 206, 235, 0.05),
     inset 0 0 0 1px rgba(135, 206, 235, 0.3);
-  background: rgba(var(--bg-primary-rgb), 0.25);
+  background: rgba(0, 0, 0, 0.5);
   transform: translateY(-2px);
 }
 
 .dark-theme .featured-article::before {
-  background: linear-gradient(
-    45deg,
-    rgba(135, 206, 235, 0.1),
-    rgba(135, 206, 235, 0.2)
-  );
+  background: linear-gradient(45deg,
+      rgba(135, 206, 235, 0.1),
+      rgba(135, 206, 235, 0.2));
 }
 
 .dark-theme .featured-article:hover::before {
@@ -666,7 +741,7 @@
 }
 
 .dark-theme .featured-article:hover .article-title {
-  text-shadow: 
+  text-shadow:
     0 0 10px rgba(135, 206, 235, 0.3),
     0 2px 4px rgba(0, 0, 0, 0.3);
 }
@@ -713,10 +788,6 @@
   grid-area: image;
 }
 
-.featured-article:hover .article-cover {
-  transform: scale(1.05);
-}
-
 .article-content {
   position: relative;
   padding: 30px;
@@ -743,19 +814,23 @@
 }
 
 .article-title {
+  max-width: 450px;
   font-size: 1.8rem;
-  color: var(--text-primary);
+  color: white;
   margin-bottom: 15px;
   line-height: 1.3;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 .article-summary {
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.9);
   opacity: 0.9;
   margin-bottom: auto;
   line-height: 1.6;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .article-footer {
@@ -764,7 +839,7 @@
   align-items: center;
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 2px solid rgba(91, 208, 255, 0.884);
 }
 
 .article-tags {
@@ -800,26 +875,28 @@
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+
   .featured-article,
   .featured-article.image-right {
     grid-template-columns: 1fr;
-    grid-template-areas: 
+    grid-template-areas:
       "image"
       "content";
   }
-  
+
   .article-cover {
+    /* width: 100px!important; */
     height: 200px;
   }
-  
+
   .article-content {
     padding: 20px;
   }
-  
+
   .article-title {
     font-size: 1.5rem;
   }
-  
+
   .article-footer {
     flex-direction: column;
     gap: 15px;
@@ -830,22 +907,29 @@
 /* 添加 CSS 变量到根样式 */
 :root {
   --bg-primary-rgb: 255, 255, 255;
-  --article-bg-image: url('/background/article-card-bg2.jpg'); /* 日间模式背景 */
+  --article-bg-image: url('/background/article-card-bg2.jpg');
+  /* 日间模式背景 */
 }
 
 .dark-theme {
   --bg-primary-rgb: 26, 26, 26;
-  --article-bg-image: url('/background/article-card-bg.jpg'); /* 夜间模式背景 */
+  --article-bg-image: url('/background/article-card-bg.jpg');
+  /* 夜间模式背景 */
 }
 
 .view-more {
+  width: 100%;
   position: relative;
   z-index: 2;
   text-align: center;
-  margin-top: 50px;
+  margin-top: 10px;
 }
 
 .view-more-link {
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border-radius: 0px;
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -854,22 +938,23 @@
   text-decoration: none;
   font-weight: 500;
   font-size: 1.1rem;
-  background: rgba(135, 206, 235, 0.8);  /* 半透明天蓝色 */
+  background: rgba(73, 203, 255, 0.548);
+  /* 半透明天蓝色 */
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
-  border-radius: 30px;
+  border-radius: 10px;
   transition: all 0.3s ease;
-  box-shadow: 
+  box-shadow:
     0 4px 15px rgba(135, 206, 235, 0.3),
     inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .view-more-link:hover {
   transform: translateY(-2px);
-  background: rgba(135, 206, 235, 0.9);
-  box-shadow: 
-    0 8px 25px rgba(135, 206, 235, 0.4),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  background: rgba(39, 194, 255, 0.712);
+  box-shadow:
+    0 8px 25px rgba(74, 228, 255, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .view-more-link:active {
@@ -887,16 +972,16 @@
 
 /* 暗色主题适配 */
 .dark-theme .view-more-link {
-  background: rgba(135, 206, 235, 0.6);
-  box-shadow: 
+  background: rgba(1, 122, 170, 0.6);
+  box-shadow:
     0 4px 15px rgba(0, 0, 0, 0.3),
     inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .dark-theme .view-more-link:hover {
-  background: rgba(135, 206, 235, 0.7);
-  box-shadow: 
-    0 8px 25px rgba(0, 0, 0, 0.4),
+  background: rgba(39, 194, 255, 0.712);
+  box-shadow:
+    0 8px 25px rgba(74, 228, 255, 0.4),
     inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
@@ -926,17 +1011,23 @@
 /* 用户卡片样式 */
 .user-card {
   background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border-radius: 12px;
   padding: 20px;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
 }
 
 .user-avatar {
-  display: flex;  /* 添加这行 */
-  justify-content: center;  /* 添加这行 */
-  align-items: center;  /* 添加这行 */
+  display: flex;
+  /* 添加这行 */
+  justify-content: center;
+  /* 添加这行 */
+  align-items: center;
+  /* 添加这行 */
 }
 
 .user-avatar img {
@@ -945,13 +1036,15 @@
   border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
   margin-bottom: 0px;
-  margin-left: 0;  /* 移除原来的 margin-left: 20% */
+  margin-left: 0;
+  /* 移除原来的 margin-left: 20% */
 }
 
 .username {
   font-size: 1.5rem;
-  color: var(--text-primary);
+  color: white;
   margin-bottom: 15px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .user-stats {
@@ -970,13 +1063,12 @@
 .number {
   font-size: 1.2rem;
   font-weight: bold;
-  color: var(--text-primary);
+  color: white;
 }
 
 .label {
   font-size: 0.9rem;
-  color: var(--text-primary);
-  opacity: 0.8;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .follow-btn {
@@ -998,12 +1090,26 @@
 
 .search-box input {
   width: calc(100% - 0px);
-  padding: 10px 40px 10px 15px;
+  padding: 12px 40px 12px 15px;
   border: none;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  color: var(--text-primary);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(135, 206, 235, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.search-box input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .search-icon {
@@ -1011,7 +1117,7 @@
   right: 15px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.7);
   opacity: 0.7;
   font-size: 1.2rem;
   cursor: pointer;
@@ -1036,7 +1142,8 @@
   border-radius: 12px;
   color: white;
   text-decoration: none;
-  transition: transform 0.3s ease;
+  /* transition: transform 0.3s ease; */
+  transition: all 0.3s ease;
 }
 
 .nav-card:hover {
@@ -1050,28 +1157,295 @@
   opacity: 0.8;
 }
 
-.blue { 
-  background: linear-gradient(135deg, #87CEEB, #5B9FBF); /* 天蓝色到深天蓝色 */
+.blue {
+  background: linear-gradient(135deg, #87CEEB, #5B9FBF);
+  position: relative;
+  overflow: hidden;
+  /* 天蓝色到深天蓝色 */
 }
 
-.green { 
-  background: linear-gradient(135deg, #87CEEB, #48D1CC); /* 天蓝色到绿松石色 */
+.blue::before{
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40%;
+  height: 105%;
+  background: url('/background/Home/Home (1).png') no-repeat center center;
+  background-size: cover;
+  opacity: 0.7;
+  z-index: 0;
 }
 
-.orange { 
-  background: linear-gradient(135deg, #87CEEB, #6495ED); /* 天蓝色到矢车菊蓝 */
+.green {
+  background: linear-gradient(135deg, #87CEEB, #48D1CC);
+  position: relative;
+  overflow: hidden;
+  /* 天蓝色到绿松石色 */
 }
 
-.pink { 
-  background: linear-gradient(135deg, #87CEEB, #4169E1); /* 天蓝色到皇家蓝 */
+.green::before{
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 10%;
+  width: 35%;
+  height: 100%;
+  background: url('/background/Home/Home (2).png') no-repeat center center;
+  background-size: cover;
+  opacity: 0.9;
+  z-index: 0;
+}
+
+.orange {
+  background: linear-gradient(135deg, #87CEEB, #6495ED);
+  position: relative;
+  overflow: hidden;
+  /* 天蓝色到矢车菊蓝 */
+}
+
+.orange::before{
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -10%;
+  width: 70%;
+  height: 130%;
+  background: url('/background/Home/Home (3).png') no-repeat center center;
+  background-size: cover;
+  opacity: 0.7;
+  z-index: 0;
+}
+
+.pink {
+  background: linear-gradient(135deg, #87CEEB, #4169E1);
+  position: relative;
+  overflow: hidden;
+  /* 天蓝色到皇家蓝 */
+}
+
+.pink::before{
+  content: '';
+  position: absolute;
+  /* top: 15%; */
+  bottom: -85%;
+  right: -15%;
+  width: 100%;
+  height: 220%;
+  background: url('/background/Home/Home (4).png') no-repeat center center ;
+  background-size: cover;
+  opacity: 0.7;
+  z-index: 0;
+  scale: 0.8;
+}
+
+.pink::before:hover{
+  scale: 1.4;
+}
+
+.friend-links {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  color: white;
+  margin-top: 20px;
+  transition: all 0.3s ease;
+}
+
+.friend-links:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 12px 36px rgb(14, 227, 255);
+  transition: all 0.3s ease;
+}
+
+.car {
+  /* margin-top: -100px; */
+}
+
+.car-container {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+  overflow: hidden;
+}
+
+.car {
+  max-width: 100%;
+  height: auto;
+}
+
+.home-friends-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.home-friend-card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  aspect-ratio: 1/1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.home-friend-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.7));
+  z-index: 1;
+}
+
+.home-friend-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  border-color: rgba(135, 206, 235, 0.3);
+}
+
+.home-friend-card:hover::before {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.8));
+}
+
+.friend-avatar-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.friend-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: all 0.3s ease;
+}
+
+.home-friend-card:hover .friend-avatar {
+  transform: scale(1.05);
+}
+
+.friend-info {
+  padding: 15px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.friend-name {
+  font-size: 1.1rem;
+  margin: 0;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.friend-desc {
+  font-size: 0.8rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.view-more-friends {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.more-friends-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #87CEEB;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.more-friends-link:hover {
+  gap: 8px;
+  color: white;
+}
+
+@media (max-width: 480px) {
+  .home-friends-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-friend-card {
+    aspect-ratio: auto;
+    height: 100px;
+    flex-direction: row;
+  }
+
+  .friend-avatar-container {
+    width: 100%;
+    height: 100%;
+  }
+
+  .friend-info {
+    text-align: left;
+    margin-left: 15px;
+    justify-content: center;
+  }
 }
 
 /* 最新文章列表样式 */
 .recent-posts {
   background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border-radius: 12px;
   padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  color: white;
+}
+
+.section-title {
+  font-size: 1.3rem;
+  color: white;
+  margin-bottom: 1rem;
+  position: relative;
+  display: inline-block;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #87CEEB;
+  transition: width 0.3s ease;
+}
+
+.recent-posts:hover .section-title::after {
+  width: 100%;
 }
 
 .post-item {
@@ -1079,6 +1453,16 @@
   gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  color: inherit;
+  text-decoration: none;
+}
+
+.post-item:hover {
+  transform: translateX(5px);
+  background: rgba(135, 206, 235, 0.1);
+  border-radius: 6px;
+  padding-left: 8px;
 }
 
 .post-thumb {
@@ -1093,6 +1477,10 @@
 }
 
 .post-title {
+  max-width: 200px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
   font-size: 0.9rem;
   margin-bottom: 5px;
   color: var(--text-primary);
@@ -1102,6 +1490,32 @@
   font-size: 0.8rem;
   color: var(--text-primary);
   opacity: 0.7;
+}
+
+/* 最新文章加载和空状态样式 */
+.post-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.mini-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(135, 206, 235, 0.2);
+  border-top: 2px solid #87CEEB;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.post-empty {
+  text-align: center;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
 }
 
 /* 响应式设计 */
@@ -1115,7 +1529,7 @@
   .page-container {
     grid-template-columns: 1fr;
   }
-  
+
   .sidebar {
     order: 2;
   }
@@ -1125,16 +1539,17 @@
 .user-card,
 .recent-posts,
 .featured-article {
-  background: var(--card-bg-light);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: var(--card-border-light);
   box-shadow: var(--card-shadow-light);
+  transition: all 0.3s ease;
 }
 
 /* 搜索框特殊样式 */
 .search-box input {
-  background: var(--card-bg-light);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: var(--card-border-light);
@@ -1144,14 +1559,18 @@
 /* 暗色主题适配 */
 .dark-theme .user-card,
 .dark-theme .recent-posts,
-.dark-theme .featured-article {
-  background: var(--card-bg-dark);
+.dark-theme .featured-article,
+.dark-theme .friend-links,
+.dark-theme .latest-whispers {
+  background: rgba(20, 20, 20, 0.6);
   border: var(--card-border-dark);
   box-shadow: var(--card-shadow-dark);
+  transition: all 0.3s ease;
 }
 
 .dark-theme .search-box input {
-  background: var(--card-bg-dark);
+  background: rgba(20, 20, 20, 0.6);
+  /* background: var(--card-bg-dark); */
   border: var(--card-border-dark);
   box-shadow: var(--card-shadow-dark);
 }
@@ -1159,10 +1578,18 @@
 /* 增强卡片悬停效果 */
 .user-card:hover,
 .recent-posts:hover,
-.featured-article:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+.friend-links:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 12px 36px rgb(14, 227, 255);
   transition: all 0.3s ease;
+  border: 1px solid rgba(135, 206, 235, 0.3);
+}
+
+.featured-article:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 12px 36px rgb(14, 227, 255);
+  /* transition: all 0.3s ease; */
+  border: 1px solid rgba(135, 206, 235, 0.3);
 }
 
 /* 搜索框获得焦点时的效果 */
@@ -1189,13 +1616,13 @@
 
 /* 音乐播放器样式 */
 .music-player {
-  background: rgba(20, 20, 20, 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(20, 20, 20, 0.6);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border: 1px solid rgba(135, 206, 235, 0.2);
-  box-shadow: 
-    0 4px 15px rgba(0, 0, 0, 0.3),
-    0 0 10px rgba(135, 206, 235, 0.1);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    0 0 15px rgba(135, 206, 235, 0.1);
   border-radius: 12px;
   padding: 20px;
   width: 100%;
@@ -1220,6 +1647,15 @@
 
 .music-details {
   flex: 1;
+  max-width: 200px;
+}
+
+/* 音频可视化样式 */
+.audio-visualizer {
+  width: 100%;
+  height: 60px;
+  border-radius: 8px;
+  background: transparent;
 }
 
 .song-name {
@@ -1329,7 +1765,7 @@
 
 .dark-theme .play-btn {
   background: rgba(135, 206, 235, 0.25);
-  box-shadow: 
+  box-shadow:
     0 0 10px rgba(135, 206, 235, 0.2),
     inset 0 0 5px rgba(135, 206, 235, 0.1);
 }
@@ -1338,11 +1774,11 @@
 .dark-theme .control-btn:hover {
   background: rgba(135, 206, 235, 0.3);
   transform: translateY(-2px);
-  box-shadow: 
+  box-shadow:
     0 5px 15px rgba(135, 206, 235, 0.3),
     inset 0 0 8px rgba(135, 206, 235, 0.2);
   color: #87CEEB;
-  text-shadow: 
+  text-shadow:
     0 0 10px rgba(135, 206, 235, 0.8),
     0 0 20px rgba(135, 206, 235, 0.4);
 }
@@ -1355,7 +1791,7 @@
 .dark-theme .progress,
 .dark-theme .progress-handle {
   background: #87CEEB;
-  box-shadow: 
+  box-shadow:
     0 0 10px rgba(135, 206, 235, 0.6),
     0 0 5px rgba(135, 206, 235, 0.3);
 }
@@ -1368,14 +1804,14 @@
 
 .dark-theme .volume-slider::-webkit-slider-thumb {
   background: #87CEEB;
-  box-shadow: 
+  box-shadow:
     0 0 10px rgba(135, 206, 235, 0.4),
     0 0 5px rgba(135, 206, 235, 0.2);
 }
 
 .dark-theme .volume-slider::-webkit-slider-thumb:hover {
   transform: scale(1.2);
-  box-shadow: 
+  box-shadow:
     0 0 15px rgba(135, 206, 235, 0.6),
     0 0 8px rgba(135, 206, 235, 0.3);
 }
@@ -1460,27 +1896,29 @@
 
 /* 响应式布局调整 */
 @media (max-width: 1024px) {
+
   .music-container,
   .content-layout {
     grid-template-columns: 250px minmax(0, 1fr);
   }
-  
+
   .music-player {
     width: calc(100% - 0px);
   }
 }
 
 @media (max-width: 768px) {
+
   .music-container,
   .content-layout {
     grid-template-columns: 1fr;
   }
-  
+
   .music-container {
     width: 100%;
     margin-left: 0;
   }
-  
+
   /* 移动端音乐播放器样式调整 */
   .music-info {
     flex-direction: column;
@@ -1488,21 +1926,21 @@
     text-align: center;
     gap: 15px;
   }
-  
+
   .music-cover {
     width: 120px;
     height: 120px;
   }
-  
+
   .control-buttons {
     gap: 20px;
   }
-  
+
   .play-btn {
     width: 50px;
     height: 50px;
   }
-  
+
   .sidebar {
     order: 2;
   }
@@ -1518,16 +1956,16 @@
     width: 100px;
     height: 100px;
   }
-  
+
   .control-buttons {
     gap: 15px;
   }
-  
+
   .play-btn {
     width: 45px;
     height: 45px;
   }
-  
+
   .music-player {
     padding: 15px;
   }
@@ -1551,8 +1989,13 @@
 }
 
 @keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-100%); }
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 /* 进度条容器 */
@@ -1620,6 +2063,10 @@
   transition: all 0.3s ease;
 }
 
+.music-view {
+  width: 100%;
+}
+
 .volume-slider:hover::-webkit-slider-thumb {
   transform: scale(1.2);
 }
@@ -1632,9 +2079,19 @@
 /* 亮色主题适配 */
 @media (prefers-color-scheme: light) {
   .music-player {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(187, 187, 187, 0.301);
     border: 1px solid rgba(135, 206, 235, 0.3);
     color: var(--text-primary);
+  }
+
+  .music-player {
+    transition: all 0.3s ease;
+  }
+  
+  .music-player:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(65, 201, 255, 0.836);
+    box-shadow: 0 0 15px rgba(0, 183, 255, 0.4), 0 0 30px rgba(0, 183, 255, 0.2);
   }
 
   .song-name {
@@ -1654,9 +2111,15 @@
 
 /* 暗色主题强制覆盖 */
 .dark-theme .music-player {
-  background: rgba(20, 20, 20, 0.8);
+  background: rgba(20, 20, 20, 0.6);
   border: 1px solid rgba(135, 206, 235, 0.2);
   color: rgba(255, 255, 255, 0.9);
+}
+
+.dark-theme .music-player:hover {
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(135, 206, 235, 0.5);
+  box-shadow: 0 0 20px rgba(135, 206, 235, 0.3), 0 0 40px rgba(135, 206, 235, 0.1);
 }
 
 .dark-theme .song-name {
@@ -1735,7 +2198,7 @@
     font-size: 0.9rem;
     gap: 6px;
   }
-  
+
   .title-dynamic {
     min-width: 100px;
   }
@@ -1770,7 +2233,7 @@
     height: 15px;
     margin: 8px 0;
   }
-  
+
   .divider-image {
     height: 15px;
   }
@@ -1783,12 +2246,14 @@
   gap: 8px;
 }
 
-.mode-btn, .list-btn {
+.mode-btn,
+.list-btn {
   opacity: 0.8;
   transition: all 0.3s ease;
 }
 
-.mode-btn:hover, .list-btn:hover {
+.mode-btn:hover,
+.list-btn:hover {
   opacity: 1;
   color: #87CEEB;
 }
@@ -1799,7 +2264,8 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 350px; /* 设置合适的宽度 */
+  width: 350px;
+  /* 设置合适的宽度 */
   background: rgba(0, 0, 0, 0.00001);
   backdrop-filter: blur(5px);
   z-index: 10001;
@@ -1828,7 +2294,8 @@
 
 .close-btn {
   position: absolute;
-  left: -16px; /* 调整位置到左边 */
+  left: -16px;
+  /* 调整位置到左边 */
   top: 50%;
   transform: translateY(-50%);
   width: 32px;
@@ -1870,9 +2337,9 @@
   background: rgba(135, 206, 235, 0.1);
 }
 
-.list-item.active {
-  color: #87CEEB;
-  background: rgba(135, 206, 235, 0.05);
+.list-item.active{
+    color: #1b90be;
+    background: rgb(98 210 255 / 23%);
 }
 
 .song-info {
@@ -1882,6 +2349,7 @@
 }
 
 .song-title {
+  color: var(--text-primary);
   font-size: 0.95rem;
   font-weight: 500;
 }
@@ -1909,9 +2377,17 @@
 }
 
 @keyframes pulse {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
 }
 
 /* 暗色主题适配 */
@@ -1950,7 +2426,7 @@
   opacity: 0;
   transition: opacity 0.3s;
   border: 1px solid rgba(135, 206, 235, 0.3);
-  box-shadow: 
+  box-shadow:
     0 4px 15px rgba(135, 206, 235, 0.2),
     0 0 10px rgba(135, 206, 235, 0.1);
   font-size: 14px;
@@ -1966,21 +2442,112 @@
 .dark-theme .mode-toast {
   background: rgba(30, 30, 30, 0.9);
   border-color: rgba(135, 206, 235, 0.2);
-  box-shadow: 
+  box-shadow:
     0 4px 15px rgba(0, 0, 0, 0.3),
     0 0 10px rgba(135, 206, 235, 0.1);
 }
 
+/* 加载和空状态样式 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  padding: 60px 20px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(135, 206, 235, 0.2);
+  border-top: 3px solid #87CEEB;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  padding: 60px 20px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  opacity: 0.6;
+}
+
+.empty-text {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.1rem;
+}
+
+.api-hint {
+  font-size: 0.9rem;
+  color: rgba(255, 193, 7, 0.8);
+  background: rgba(255, 193, 7, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  border: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+/* 暗色主题适配 */
+.dark-theme .loading-state,
+.dark-theme .empty-state {
+  background: rgba(20, 20, 20, 0.6);
+  border: 1px solid rgba(135, 206, 235, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .loading-spinner {
+  border-color: rgba(135, 206, 235, 0.3);
+  border-top-color: #87CEEB;
+}
+
 /* 最新树洞样式 */
 .latest-whispers {
-  background: var(--card-bg-light);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: var(--card-border-light);
-  box-shadow: var(--card-shadow-light);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   border-radius: 12px;
   padding: 20px;
   margin-top: 20px;
+  color: white;
 }
 
 .whispers-list {
@@ -1991,13 +2558,14 @@
 }
 
 .whisper-item {
-  background: rgba(135, 206, 235, 0.05);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   padding: 12px;
   transition: all 0.3s ease;
   position: relative;
   border: 1px solid rgba(135, 206, 235, 0.1);
   backdrop-filter: blur(5px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .whisper-item.new::before {
@@ -2016,15 +2584,15 @@
 
 .whisper-item:hover {
   transform: translateY(-2px);
-  background: rgba(135, 206, 235, 0.1);
+  background: rgba(0, 0, 0, 0.3);
   border-color: rgba(135, 206, 235, 0.2);
-  box-shadow: 
-    0 4px 12px rgba(135, 206, 235, 0.1),
-    0 0 8px rgba(135, 206, 235, 0.05);
+  box-shadow:
+    0 4px 15px rgba(0, 0, 0, 0.2),
+    0 0 10px rgba(135, 206, 235, 0.1);
 }
 
 .whisper-content {
-  color: var(--text-color);
+  color: white;
   font-size: 0.9rem;
   line-height: 1.5;
   margin-bottom: 8px;
@@ -2035,55 +2603,29 @@
   justify-content: space-between;
   align-items: center;
   font-size: 0.8rem;
-  color: var(--text-color);
-  opacity: 0.8;
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.whisper-stats {
-  display: flex;
-  gap: 12px;
+.audio-visualizer {
+  width: 100%;
+  height: 80px;
+  margin: 0px 0px;
+  border-radius: 0px;
+  background: rgba(0, 0, 0, 0.0);
 }
 
-.whisper-stats .stat {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.whisper-stats .stat:hover {
-  color: #87CEEB;
-  text-shadow: 0 0 8px rgba(135, 206, 235, 0.4);
-}
-
-/* 暗色主题适配 */
-.dark-theme .latest-whispers {
-  background: var(--card-bg-dark);
-  border: var(--card-border-dark);
-  box-shadow: var(--card-shadow-dark);
-}
-
-.dark-theme .whisper-item {
-  background: rgba(0, 0, 0, 0.2);
-  border-color: rgba(135, 206, 235, 0.1);
-}
-
-.dark-theme .whisper-item:hover {
-  background: rgba(135, 206, 235, 0.1);
-  border-color: rgba(135, 206, 235, 0.2);
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.2),
-    0 0 8px rgba(135, 206, 235, 0.1);
-}
 </style>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import Banner from '../components/Banner.vue'
 import { Icon } from '@iconify/vue'
 import { useMusicStore } from '../stores/music'
 import { useDark } from '@vueuse/core'
+import { config } from '../config/index'
+import { getRecentArticles, type Article } from '../services/article'
+import { formatDate } from '../utils/formatDate'
+import FooterBanner from '@/components/FooterBanner.vue'
 
 const articleRefs = ref<HTMLElement[]>([])
 const musicStore = useMusicStore()
@@ -2094,6 +2636,16 @@ const previousVolume = ref(20)
 const shouldMarquee = ref(false)
 const shouldMarqueeArtist = ref(false)
 
+// 音频可视化相关
+const visualizerCanvas = ref<HTMLCanvasElement | null>(null)
+let audioContext: AudioContext
+let analyser: AnalyserNode
+let dataArray: Uint8Array
+let animationId: number
+const lastVisualizerUpdate = ref(0)
+const visualizerFrameRate = ref(60) // 将帧率从默认的60FPS降低到30FPS
+const smoothFactor = ref(0.2) // 平滑因子，值在0-1之间，值越小越平滑
+
 const isDark = useDark({
   selector: 'html',
   attribute: 'class',
@@ -2101,19 +2653,21 @@ const isDark = useDark({
   valueLight: ''
 })
 
+
+
 const handleMouseMove = (e: MouseEvent) => {
   const target = e.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
-  
+
   const x = e.clientX - rect.left
   const y = e.clientY - rect.top
-  
+
   const centerX = rect.width / 2
   const centerY = rect.height / 2
-  
+
   const rotateX = (y - centerY) / 40
   const rotateY = (centerX - x) / 200
-  
+
   target.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.01, 1.01, 1.01)`
 }
 
@@ -2126,61 +2680,136 @@ const handleMouseLeave = (e: MouseEvent) => {
   }, 500)
 }
 
-const featuredArticles = ref([
-  {
-    id: 1,
-    title: '探索 Vue 3 组合式 API 的最佳实践',
-    summary: '组合式 API 是 Vue 3 中最重要的特性之一，它为我们提供了更好的代码组织方式和逻辑复用能力...',
-    cover: '/articles/cover/1.jpg',
-    date: '2024-03-21',
-    category: '前端开发',
-    tags: ['Vue3', 'JavaScript', '最佳实践']
-  },
-  {
-    id: 2,
-    title: '使用 TypeScript 提升代码质量',
-    summary: 'TypeScript 作为 JavaScript 的超集，为我们带来了类型安全和更好的开发体验...',
-    cover: '/articles/cover/2.jpg',
-    date: '2024-03-20',
-    category: '编程语言',
-    tags: ['TypeScript', '最佳实践', '代码质量']
-  },
-  {
-    id: 3,
-    title: '深入理解 CSS Grid 布局',
-    summary: 'CSS Grid 布局是一个强大的二维布局系统，它彻底改变了我们设计网页布局的方式...',
-    cover: '/articles/cover/3.jpg',
-    date: '2024-03-19',
-    category: '前端开发',
-    tags: ['CSS', 'Web设计', '响应式']
-  }
-])
+// 文章数据和加载状态
+const featuredArticles = ref<Article[]>([])
+const isLoadingArticles = ref(true)
 
-// 添加最新文章数据
-const recentPosts = ref([
-  {
-    id: 1,
-    title: 'Dansela - 文档色彩与网站美化',
-    cover: '/articles/cover/1.jpg',
-    date: '2024-06-04'
-  },
-  {
-    id: 2,
-    title: 'Dansela - 部署文档',
-    cover: '/articles/cover/2.jpg',
-    date: '2022-12-26'
-  },
-  {
-    id: 3,
-    title: 'Dansela - 完整版',
-    cover: '/articles/cover/3.jpg',
-    date: '2022-03-03'
+// 最新文章数据
+const recentPosts = ref<Article[]>([])
+const isLoadingRecentPosts = ref(true)
+
+// 初始化音频可视化
+const initAudioVisualizer = () => {
+  if (!visualizerCanvas.value) return
+  
+  const canvas = visualizerCanvas.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  
+  // 设置canvas尺寸
+  canvas.width = canvas.clientWidth
+  canvas.height = canvas.clientHeight
+  
+  // 创建音频上下文
+  audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+  analyser = audioContext.createAnalyser()
+  analyser.fftSize = 256
+  
+  const bufferLength = analyser.frequencyBinCount
+  dataArray = new Uint8Array(bufferLength)
+  
+  // 创建一个虚拟音频元素用于分析
+  const audio = new Audio()
+  audio.src = musicStore.currentSong.src
+  audio.crossOrigin = "anonymous"
+  
+  // 连接音频源
+  const source = audioContext.createMediaElementSource(audio)
+  source.connect(analyser)
+  analyser.connect(audioContext.destination)
+  
+  // 如果音乐正在播放，也播放这个音频
+  if (musicStore.isPlaying) {
+    audio.play()
   }
-])
+  
+  // 开始绘制
+  drawVisualizer(ctx, canvas.width, canvas.height, bufferLength)
+  
+  // 监听音乐播放状态变化
+  watch(() => musicStore.isPlaying, (playing) => {
+    if (playing) {
+      audio.play()
+    } else {
+      audio.pause()
+    }
+  })
+  
+  // 监听歌曲变化
+  watch(() => musicStore.currentSong, (newSong) => {
+    audio.src = newSong.src
+    if (musicStore.isPlaying) {
+      audio.play()
+    }
+  })
+}
+
+// 绘制可视化效果
+const drawVisualizer = (ctx: CanvasRenderingContext2D, width: number, height: number, bufferLength: number) => {
+  // 添加帧率控制
+  const now = performance.now()
+  const deltaTime = now - lastVisualizerUpdate.value || 0
+  const minFrameTime = 1000 / visualizerFrameRate.value
+  
+  if (deltaTime >= minFrameTime) {
+    lastVisualizerUpdate.value = now
+    
+    analyser.getByteFrequencyData(dataArray)
+    
+    ctx.clearRect(0, 0, width, height)
+    
+    // 固定柱子宽度为4px，间距为2px
+    const barWidth = 4
+    const gap = 2
+    const barTotalWidth = barWidth + gap
+    
+    // 计算可以容纳的柱子数量
+    const barCount = Math.floor(width / barTotalWidth)
+    
+    // 根据主题模式设置柱子颜色
+    if (isDark.value) {
+      // 暗黑模式使用主题蓝色和发光效果
+      ctx.fillStyle = '#87CEEB'
+      ctx.shadowColor = '#87CEEB'
+      ctx.shadowBlur = 8
+    } else {
+      // 白天模式使用黑色，不发光
+      ctx.fillStyle = '#2e2e2e'
+      ctx.shadowColor = '2e2e2e'
+      ctx.shadowBlur = 0
+    }
+    
+    // 计算起始位置，使柱子居中
+    const startX = (width - barCount * barTotalWidth + gap) / 2
+    
+    // 添加一个数组来存储上一帧的柱子高度
+    const previousHeights = (window as any).previousHeights || new Array(barCount).fill(0)
+    ;(window as any).previousHeights = previousHeights
+    
+    for (let i = 0; i < barCount; i++) {
+      // 从dataArray中采样数据，如果barCount大于bufferLength，则进行插值
+      let dataIndex = Math.floor(i * bufferLength / barCount)
+      // 修改柱子的最大高度为容器高度的80%
+      let targetHeight = (dataArray[dataIndex] / 255) * (height * 0.8)
+      
+      // 应用平滑过渡效果
+      let barHeight = previousHeights[i] + (targetHeight - previousHeights[i]) * smoothFactor.value
+      previousHeights[i] = barHeight
+      
+      // 绘制柱状图
+      ctx.fillRect(startX + i * barTotalWidth, height - barHeight, barWidth, barHeight)
+    }
+  }
+  
+  animationId = requestAnimationFrame(() => drawVisualizer(ctx, width, height, bufferLength))
+}
 
 // 在播放按钮点击事件中使用
 const handlePlayClick = () => {
   musicStore.togglePlay()
+  if (!audioContext && musicStore.isPlaying) {
+    initAudioVisualizer()
+  }
 }
 
 // 计算进度百分比
@@ -2229,7 +2858,7 @@ const toggleMute = () => {
 const checkMarquee = () => {
   const titleEl = document.querySelector('.song-name')
   const artistEl = document.querySelector('.artist-name')
-  
+
   if (titleEl) {
     shouldMarquee.value = titleEl.scrollWidth > (titleEl.parentElement?.clientWidth || 0)
   }
@@ -2244,10 +2873,14 @@ watch(() => musicStore.currentSong, () => {
   musicStore.setVolume(volume.value)
 }, { immediate: true })
 
-onMounted(() => {
-  checkMarquee()
-  window.addEventListener('resize', checkMarquee)
+// 监听音乐播放状态
+watch(() => musicStore.isPlaying, (playing) => {
+  if (playing && !audioContext) {
+    initAudioVisualizer()
+  }
 })
+
+
 
 // 根据主题动态计算封面图片
 const coverImage = computed(() => {
@@ -2273,17 +2906,17 @@ const currentText = ref(textPool[0])
 const switchText = () => {
   const nextIndex = (currentTextIndex.value + 1) % textPool.length
   currentTextIndex.value = nextIndex
-  
+
   // 添加淡出效果
   const titleDynamic = document.querySelector('.title-dynamic')
   if (titleDynamic) {
     titleDynamic.classList.add('fade-out')
-    
+
     setTimeout(() => {
       currentText.value = textPool[nextIndex]
       titleDynamic.classList.remove('fade-out')
       titleDynamic.classList.add('fade-in')
-      
+
       setTimeout(() => {
         titleDynamic.classList.remove('fade-in')
       }, 500)
@@ -2292,12 +2925,7 @@ const switchText = () => {
 }
 
 // 启动文本切换定时器
-onMounted(() => {
-  // ... 其他 onMounted 代码保持不变 ...
-  
-  // 每5秒切换一次文本
-  setInterval(switchText, 5000)
-})
+
 
 // 添加分隔线图片计算属性
 const dividerImage = computed(() => {
@@ -2340,10 +2968,10 @@ const togglePlayMode = () => {
   const currentIndex = modes.indexOf(musicStore.playMode)
   const nextIndex = (currentIndex + 1) % modes.length
   const nextMode = modes[nextIndex]
-  
+
   // 设置新的播放模式
   musicStore.setPlayMode(nextMode)
-  
+
   // 显示提示信息（可以添加一个简单的提示组件）
   const modeMessages = {
     sequence: '顺序播放',
@@ -2385,6 +3013,9 @@ const stopDragging = () => {
   isDragging.value = false
 }
 
+
+
+
 /* 添加最新树洞数据 */
 const latestWhispers = ref([
   {
@@ -2416,4 +3047,160 @@ const latestWhispers = ref([
     isNew: false
   }
 ])
-</script> 
+
+// 添加视差效果处理函数
+const handleParallax = (e: MouseEvent) => {
+  const video = document.querySelector('.background-video') as HTMLElement;
+  if (!video) return;
+
+  // 计算鼠标位置相对于窗口中心的偏移百分比
+  const mouseX = e.clientX / window.innerWidth - 0.5; // -0.5 到 0.5 之间
+  const mouseY = e.clientY / window.innerHeight - 0.5; // -0.5 到 0.5 之间
+
+  // 计算视频位移，乘以一个小系数使得移动效果轻微
+  const moveX = -(mouseX * 200); // 水平方向移动系数
+  const moveY = -(mouseY * 200); // 垂直方向移动系数
+
+  // 应用变换，包括初始的居中和缩放
+  video.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px)) scale(1.1)`;
+}
+
+// 在组件挂载时添加鼠标移动事件监听
+onMounted(() => {
+  checkMarquee();
+  window.addEventListener('resize', checkMarquee);
+
+  // 添加视差效果的事件监听
+  window.addEventListener('mousemove', handleParallax);
+
+  // 每5秒切换一次文本
+  setInterval(switchText, 5000);
+
+  // 设置主题监听
+  const cleanupThemeListener = setupThemeListener()
+
+  // 获取文章和友链数据
+  fetchFeaturedArticles();
+  fetchRecentPosts();
+  fetchTopFriends();
+  
+  // 如果音乐正在播放，初始化音频可视化
+  if (musicStore.isPlaying) {
+    initAudioVisualizer();
+  }
+});
+
+// 在组件卸载时移除事件监听
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMarquee);
+  window.removeEventListener('mousemove', handleParallax);
+
+  // 移除主题变化监听器在此处应该也被清理
+  const cleanupThemeListener = setupThemeListener()
+  cleanupThemeListener()
+  
+  // 清理音频可视化资源
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+  }
+  if (audioContext) {
+    audioContext.close();
+  }
+  
+  // 清理音频元素
+  const audioElements = document.querySelectorAll('audio')
+  audioElements.forEach(audio => {
+    audio.pause()
+    audio.src = ''
+  })
+});
+
+// 友链相关
+// 定义友链类型
+interface FriendLink {
+  name: string;
+  avatar: string;
+  url: string;
+  description: string;
+  category?: string;
+  cover?: string;
+}
+
+const topFriends = ref<FriendLink[]>([]);
+
+// 获取特色文章数据
+const fetchFeaturedArticles = async () => {
+  try {
+    isLoadingArticles.value = true
+    const articles = await getRecentArticles(3) // 获取最新3篇文章作为特色文章
+    featuredArticles.value = articles
+    console.log('特色文章加载成功:', articles.length)
+  } catch (error) {
+    console.error('加载特色文章失败:', error)
+    featuredArticles.value = []
+  } finally {
+    isLoadingArticles.value = false
+  }
+}
+
+// 获取最新文章数据（侧边栏显示）
+const fetchRecentPosts = async () => {
+  try {
+    isLoadingRecentPosts.value = true
+    const articles = await getRecentArticles(3) // 获取最新3篇文章
+    recentPosts.value = articles
+    console.log('最新文章加载成功:', articles.length)
+  } catch (error) {
+    console.error('加载最新文章失败:', error)
+    recentPosts.value = []
+  } finally {
+    isLoadingRecentPosts.value = false
+  }
+}
+
+// 获取友链数据
+const fetchTopFriends = async () => {
+  try {
+    const response = await fetch(`${config.api.apiUrl}/friend-links`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      console.error('获取友链失败:', response.status);
+      return;
+    }
+
+    const data = await response.json();
+
+    if (data.success) {
+      // 只展示3个友链
+      topFriends.value = data.data.friends.slice(0, 3);
+    }
+  } catch (error) {
+    console.error('获取友链出错:', error);
+  }
+};
+
+// 打开友链
+const openFriendLink = (url: string) => {
+  const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+  window.open(fullUrl, '_blank', 'noopener noreferrer');
+};
+
+// 监听主题变化事件
+const setupThemeListener = () => {
+  const handleThemeChange = () => {
+    // 重新计算依赖isDark的计算属性
+    checkMarquee()
+  }
+
+  document.addEventListener('themeChange', handleThemeChange)
+
+  return () => {
+    document.removeEventListener('themeChange', handleThemeChange)
+  }
+}
+</script>

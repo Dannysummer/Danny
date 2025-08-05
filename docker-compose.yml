@@ -1,17 +1,13 @@
-version: '3'
+version: '3.8'
 services:
   frontend:
-    build: ./blog-frontend
+    build: .
+    container_name: danny-blog-frontend
     ports:
-      - "80:80"
-      
-  backend:
-    build: ./blog-backend
-    ports:
-      - "8080:8080"
-      
-  mysql:
-    image: mysql:8.0
-    
-  redis:
-    image: redis:7.2.3 
+      - "3000:80"
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  artalk_data: 

@@ -12,6 +12,7 @@
         - 平滑的过渡动画
         - 响应式布局
         - 触摸设备支持
+
       </p>
     </div>
   </ImgBg>
@@ -19,7 +20,7 @@
 
 <script setup lang="ts">
 import ImgBg from '../components/ImgBg.vue'
-import type { ImgBgRow } from '../types/imgbg'
+import type { ImgBgRow } from '../types'
 
 // 测试图片数据
 const imageRows: ImgBgRow[] = [

@@ -16,7 +16,7 @@
           <span class="time-unit">{{ minutes }}</span>分
           <span class="time-unit">{{ seconds }}</span>秒
         </div>
-        <div class="text-line">本网站由 Dansela 独立开发 | ICP备20250113号</div>
+        <div class="text-line">本网站由 Dansela 独立开发 | 蜀ICP备2025124170号-1</div>
         <div class="disclaimer-carousel">
           <transition-group name="slide">
             <div class="carousel-item" v-show="currentIndex === 0" :key="0">
@@ -96,6 +96,8 @@ onUnmounted(() => {
 
 <style scoped>
 .footer-banner {
+  margin-top: 0px;
+  border-radius: 40px 40px 0 0;
   width: 100%;
   background: linear-gradient(
     rgba(0, 0, 0, 0.6),
@@ -112,6 +114,7 @@ onUnmounted(() => {
 
 /* 添加一个额外的模糊层 */
 .footer-banner::before {
+  border-radius: 40px 40px 0 0;
   content: '';
   position: absolute;
   top: 0;
@@ -124,6 +127,7 @@ onUnmounted(() => {
 
 /* 确保内容在模糊层之上 */
 .footer-content {
+  border-radius: 40px 40px 0 0;
   position: relative;
   z-index: 888;
   max-width: 1200px;
@@ -164,12 +168,12 @@ onUnmounted(() => {
   font-size: 0.9rem;
   opacity: 0.9;
   line-height: 1.6;
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
 }
 
 .text-line {
   margin: 5px 0;
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
 }
 
 .text-line:first-child {
@@ -228,7 +232,7 @@ onUnmounted(() => {
 
 /* 添加运行时间样式 */
 .runtime {
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
   margin: 10px 0;
   color: #fff;
   font-size: 0.95rem;
@@ -241,7 +245,7 @@ onUnmounted(() => {
   margin: 0 2px;
   color: #87CEEB;
   font-weight: bold;
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
   text-shadow: 
     0 0 5px rgba(135, 206, 235, 0.5),
     0 0 10px rgba(135, 206, 235, 0.3);
@@ -271,7 +275,7 @@ onUnmounted(() => {
   position: absolute;
   width: 100%;
   transition: all 0.5s ease;
-  font-family: 'Yozai', sans-serif;
+  font-family: 'zhuzi', sans-serif;
 }
 
 /* 轮播动画 */

@@ -26,7 +26,7 @@
           @mousemove="onDrag"
           @mouseup="stopDrag"
           @mouseleave="stopDrag"
-          @touchstart="startDrag"
+          @touchstart.passive="startDrag"
           @touchmove="onDrag"
           @touchend="stopDrag">
         <div class="bars-container">

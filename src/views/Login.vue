@@ -122,24 +122,22 @@
 
         <!-- 邮箱验证码只在注册时显示 -->
         <Transition name="fade-height">
-          <div class="input-group" v-show="!isLogin">
-            <div class="email-verify">
-              <Icon icon="material-symbols:verified-user-outline" />
-              <input 
-                type="text" 
-                v-model="emailVerifyCode"
-                placeholder=" "
-                maxlength="6"
-              />
-              <label>请输入邮箱送来的友令</label>
-              <button 
-                class="send-code-btn" 
-                @click="sendEmailVerifyCode"
-                :disabled="emailCountdown > 0"
-              >
-                {{ emailCountdown > 0 ? `${emailCountdown}s` : '获取友令' }}
-              </button>
-            </div>
+          <div class="input-group" v-if="!isLogin && onEmailVerify">
+            <Icon icon="material-symbols:verified-user-outline" />
+            <input 
+              type="text" 
+              v-model="emailVerifyCode"
+              placeholder=" "
+              maxlength="6"
+            />
+            <label>请输入邮箱验证码</label>
+            <button 
+              class="send-code-btn" 
+              @click="sendEmailVerifyCode"
+              :disabled="emailCountdown > 0"
+            >
+              {{ emailCountdown > 0 ? `${emailCountdown}s` : '获取验证码' }}
+            </button>
           </div>
         </Transition>
 
@@ -199,15 +197,39 @@
       <div class="modal-content">
         <h3>找回密码</h3>
         <div class="input-group">
-          <Icon icon="material-symbols:person-outline" />
+          <Icon icon="material-symbols:mail-outline" />
+          <input 
+            type="email" 
+            v-model="resetEmail" 
+            placeholder=" "
+          />
+          <label>请输入注册邮箱</label>
+        </div>
+        
+        <!-- 添加验证码输入框 -->
+        <div class="input-group" v-if="showResetCode">
+          <Icon icon="material-symbols:verified-user-outline" />
           <input 
             type="text" 
-            v-model="resetEmail" 
-            placeholder="请输入注册邮箱"
+            v-model="resetCode"
+            placeholder=" "
+            maxlength="6"
           />
+          <label>请输入验证码</label>
+          <button 
+            class="send-code-btn" 
+            @click="sendResetCode"
+            :disabled="resetCountdown > 0 || isLoading"
+          >
+            <span v-if="isLoading" class="loading-spinner"></span>
+            {{ resetCountdown > 0 ? `${resetCountdown}s` : isLoading ? '发送中...' : '获取验证码' }}
+          </button>
         </div>
+        
         <div class="modal-buttons">
-          <button @click="handleResetPassword" class="submit-btn">发送重置链接</button>
+          <button @click="handleResetPassword" class="submit-btn">
+            {{ showResetCode ? '重置密码' : '下一步' }}
+          </button>
           <button @click="showResetPassword = false" class="cancel-btn">取消</button>
         </div>
       </div>
@@ -268,16 +290,107 @@
         </button>
       </div>
     </div>
+
+    <!-- 添加登录成功的问候语 -->
+    <Transition name="greeting">
+      <div v-if="showLoginGreeting" class="greeting-text">
+        {{ loginGreeting }}
+      </div>
+    </Transition>
+
+    <!-- 自定义提示框 -->
+    <CustomAlert 
+      v-model:show="alertConfig.show"
+      :message="alertConfig.message"
+      :type="alertConfig.type"
+      :duration="alertConfig.duration"
+    />
+
+    <!-- 添加超级管理员选择模态框 -->
+    <div class="modal" v-if="showAdminOptions" @click.self="showAdminOptions = false">
+      <div class="modal-content">
+        <h3>尊敬的领主大人，全体领民欢迎您回家</h3>
+        <p class="admin-welcome-text">您要查看领地，还是处理内务呢？</p>
+        <div class="modal-buttons admin-options">
+          <button @click="goToHome" class="home-btn">
+            <div class="clum">
+              <Icon icon="mdi:home" class="home-btn-icon"/>
+              进入首页
+            </div>
+          </button>
+          <button @click="showAdminVerify = true; showAdminOptions = false" class="admin-btn">
+            <div class="clum">
+              <Icon icon="mdi:shield-account" class="admin-btn-icon"/>
+              进入管理后台
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加管理员邮箱验证模态框 -->
+    <div class="modal" v-if="showAdminVerify" @click.self="showAdminVerify = false">
+      <div class="modal-content">
+        <h3>安全验证</h3>
+        <p class="verify-text">为了保障您的账号安全，请进行邮箱验证</p>
+        
+        <div class="input-group">
+          <Icon icon="material-symbols:verified-user-outline" />
+          <input 
+            type="text" 
+            v-model="adminVerifyCode"
+            placeholder=" "
+            maxlength="6"
+          />
+          <label>请输入验证码</label>
+          <button 
+            class="send-code-btn" 
+            @click="sendAdminVerifyCode"
+            :disabled="adminVerifyCountdown > 0 || adminVerifyLoading"
+          >
+            <span v-if="adminVerifyLoading" class="loading-spinner"></span>
+            {{ adminVerifyCountdown > 0 ? `${adminVerifyCountdown}s` : adminVerifyLoading ? '发送中...' : '获取验证码' }}
+          </button>
+        </div>
+        
+        <div class="modal-buttons">
+          <button @click="verifyAdminCode" class="submit-btn" :disabled="adminVerifyLoading">
+            验证并进入
+          </button>
+          <button @click="showAdminVerify = false" class="cancel-btn">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 激光卡片弹窗 -->
+    <div v-if="showLaserCard" class="laser-card-modal">
+      <div class="laser-card-container">
+        <!-- <div class="close-btn" @click="closeLaserCard">×</div> -->
+        <h3 class="welcome-title">欢迎加入！这是您的专属卡片</h3>
+        <LaserCard 
+          :username="userStore.userInfo?.username" 
+          :createTime="formatDate(userStore.userInfo?.registrationTime)" 
+          :rank="userStore.userInfo?.userRank"
+          :useId="userStore.userInfo?.id?.toString() || '00000000'"
+        />
+        <div class="confirm-btn" @click="closeLaserCard">我已收藏</div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useThemeStore } from '../stores/theme'
 import { useUserStore } from '../stores/user'
 import { useRouter } from 'vue-router'
 import ParticlesBackground from '../components/ParticlesBackground.vue'
+import axios from '../utils/axios'
+import CustomAlert from '../components/CustomAlert.vue'
+import LaserCard from '../components/LaserCard.vue'
+import { config } from '../config/index'
 
 const themeStore = useThemeStore()
 const userStore = useUserStore()
@@ -313,6 +426,37 @@ const emailCountdown = ref(0)
 const confirmPasswordStrength = ref(0)
 const blockCheckInterval = ref<number>()
 const sessionCheckInterval = ref<number>()
+const onEmailVerify = ref(true)
+const showLoginGreeting = ref(false)
+const loginGreeting = ref('')
+const resetCode = ref('')
+const showResetCode = ref(false)
+const resetCountdown = ref(0)
+const isLoading = ref(false)
+
+// 添加管理员相关的状态
+const showAdminOptions = ref(false)
+const showAdminVerify = ref(false)
+const adminVerifyCode = ref('')
+const adminVerifyCountdown = ref(0)
+const adminVerifyLoading = ref(false)
+
+// 激光卡片相关状态
+const showLaserCard = ref(false)
+const userRank = ref('1')  // 默认排名，实际应从API获取
+
+// 修改 alertConfig 的定义
+const alertConfig = ref<{
+  show: boolean
+  message: string
+  type: 'success' | 'error' | 'warning' | 'info'
+  duration: number
+}>({
+  show: false,
+  message: '',
+  type: 'info',
+  duration: 3000
+})
 
 // 根据主题切换分割线图片
 const dividerImage = computed(() => {
@@ -335,13 +479,23 @@ const validateUsername = () => {
 const validatePassword = () => {
   if (!password.value) {
     errors.value.password = '请输入密码'
-  } else if (password.value.length < 8) {
-    errors.value.password = '密码长度不能少于8个字符'
-  } else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+\-=\[\]{};:'",.<>/?]+$/.test(password.value)) {
-    errors.value.password = '密码必须包含字母和数字'
-  } else {
-    errors.value.password = ''
+    return false
   }
+  
+  // 只在注册时验证密码格式
+  if (!isLogin.value) {
+    if (password.value.length < 8) {
+      errors.value.password = '密码长度不能少于8个字符'
+      return false
+    }
+    if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+\-=\[\]{};:'",.<>/?]+$/.test(password.value)) {
+      errors.value.password = '密码必须包含字母和数字'
+      return false
+    }
+  }
+  
+  errors.value.password = ''
+  return true
 }
 
 const validateEmail = () => {
@@ -359,9 +513,14 @@ const validateForm = () => {
   validatePassword()
   if (!isLogin.value) {
     validateEmail()
-    validateConfirmPassword() // 添加确认密码验证
+    validateConfirmPassword()
     if (password.value !== confirmPassword.value) {
       errors.value.confirm = '两次输入的密码不一致'
+      return false
+    }
+    // 只在启用邮箱验证时检查验证码
+    if (onEmailVerify.value && !emailVerifyCode.value) {
+      showAlert('请输入邮箱验证码', 'warning')
       return false
     }
   }
@@ -378,47 +537,40 @@ const generateCaptcha = () => {
   if (!ctx) return
   
   // 清空画布
-  ctx.clearRect(0, 0, canvas.width, canvas.height) // 完全清除画布
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  
+  // 设置背景
   ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   
-  // 生成随机验证码（包含大小写字母和数字）
+  // 生成4位验证码
   const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
   let code = ''
+  
   for (let i = 0; i < 4; i++) {
     const char = chars[Math.floor(Math.random() * chars.length)]
     code += char
     
-    // 随机颜色和位置
+    // 随机颜色
     const hue = Math.random() * 360
-    const saturation = 70 + Math.random() * 30 // 70-100%
-    const lightness = 60 + Math.random() * 20 // 60-80%
-    ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`
-    ctx.font = 'bold 24px Arial'
+    ctx.fillStyle = `hsl(${hue}, 70%, 70%)`
+    
+    // 随机字体大小和旋转
+    const fontSize = 24 + Math.random() * 8
+    const rotation = (Math.random() - 0.5) * 0.3
+    
+    ctx.font = `bold ${fontSize}px Arial`
     ctx.textBaseline = 'middle'
-    // 添加随机旋转
+    
+    // 绘制文字
     ctx.save()
-    const rotation = (Math.random() - 0.5) * 0.3 // -0.15 到 0.15 弧度
     ctx.translate(20 * i + 15, 20)
     ctx.rotate(rotation)
     ctx.fillText(char, 0, 0)
     ctx.restore()
   }
   
-  // 添加干扰线
-  ctx.lineWidth = 1
-  for (let i = 0; i < 3; i++) {
-    ctx.beginPath()
-    ctx.strokeStyle = `rgba(255, 255, 255, ${Math.random() * 0.2})`
-    const x1 = Math.random() * canvas.width
-    const y1 = Math.random() * canvas.height
-    const x2 = Math.random() * canvas.width
-    const y2 = Math.random() * canvas.height
-    ctx.moveTo(x1, y1)
-    ctx.lineTo(x2, y2)
-    ctx.stroke()
-  }
-  
+  // 保存验证码文本
   captchaText.value = code
 }
 
@@ -464,85 +616,334 @@ const strengthText = computed(() => {
   return '非常强'
 })
 
-// 处理密码重置
-const handleResetPassword = async () => {
-  if (!resetEmail.value) {
-    alert('请输入邮箱地址')
-    return
-  }
-  
-  try {
-    // TODO: 调用后端 API 发送重置邮件
-    alert('重置链接已发送到您的邮箱')
-    showResetPassword.value = false
-  } catch (error: any) {
-    alert(error.message)
-  }
+// 定义接口类型
+interface LoginData {
+  username: string
+  password: string
+  rememberMe: boolean
+  captcha?: string // 可选的验证码
 }
 
-// 计算是否显示验证码
-const showCaptcha = computed(() => {
-  // 只在登录时且需要验证码时显示
-  return isLogin.value && userStore.needCaptcha(username.value)
-})
+// interface RegisterData {
+//   username: string
+//   password: string
+//   email: string
+//   emailVerifyCode: string
+// }
 
-// 修改登录提交方法
+// 修改 handleSubmit 方法
 const handleSubmit = async () => {
   if (!validateForm()) {
-    alert('请完善所有必填信息并确保输入正确')
+    showAlert('请完善所有必填信息并确保输入正确', 'warning')
     return
   }
 
   // 检查是否同意协议
   if (!isLogin.value && !agreeToTerms.value) {
-    alert('请阅读并同意用户协议和隐私政策')
+    showAlert('请阅读并同意用户协议和隐私政策', 'warning')
     return
   }
 
   // 只在登录时检查图片验证码
-  if (isLogin.value && showCaptcha.value && captcha.value !== captchaText.value) {
-    alert('验证码错误')
-    refreshCaptcha()
-    return
+  if (isLogin.value && showCaptcha.value) {
+    if (!captcha.value) {
+      showAlert('请输入图片验证码', 'warning')
+      return
+    }
+    if (captcha.value.toLowerCase() !== captchaText.value.toLowerCase()) {
+      showAlert('图片验证码错误', 'error')
+      refreshCaptcha()
+      return
+    }
   }
 
   // 检查登录频率限制
   if (isLogin.value) {
     const now = Date.now()
-    // 检查是否在封禁时间内
     if (loginBlocked.value && now < blockEndTime.value) {
       const remainingMinutes = Math.ceil((blockEndTime.value - now) / 60000)
-      alert(`账号已被临时封禁，请在 ${remainingMinutes} 分钟后重试`)
+      showAlert(`账号已被临时封禁，请在 ${remainingMinutes} 分钟后重试`, 'error')
       return
     }
 
     if (loginAttempts.value >= 5 && now - lastLoginAttempt.value < 15 * 60 * 1000) {
       loginBlocked.value = true
       blockEndTime.value = now + 15 * 60 * 1000
-      alert('登录尝试次数过多，账号已被临时封禁15分钟')
+      showAlert('登录尝试次数过多，账号已被临时封禁15分钟', 'error')
       return
     }
   }
   
   try {
     if (isLogin.value) {
-      await userStore.login(username.value, password.value, rememberMe.value)
-      loginAttempts.value = 0
-      alert('登录成功，欢迎回来！')
+      // 登录请求数据
+      const loginData: LoginData = {
+        username: username.value,
+        password: password.value,
+        rememberMe: rememberMe.value
+      }
+      
+      // 如果需要验证码，添加到请求数据中
+      if (showCaptcha.value) {
+        loginData.captcha = captcha.value
+      }
+
+      // 发送登录请求
+      const response = await axios.post('/api/auth/login', loginData)
+      
+      if (response.data.success) {
+        // 设置问候语
+        loginGreeting.value = '登录成功！欢迎回来~'
+        
+        // 获取用户角色 - 修正从正确的位置获取
+        const userRole = response.data.data?.role || 'user'
+        
+        // 更新用户信息到 store
+        userStore.userInfo = {
+          username: username.value,
+          avatar: response.data.data?.avatar || '/avatars/default-avatar.png',
+          role: userRole,
+          email: response.data.data?.email || ''  // 保存邮箱以便后续验证
+        }
+        
+        // 设置登录状态
+        userStore.isLoggedIn = true
+        
+        if (rememberMe.value) {
+          localStorage.setItem('rememberedUser', JSON.stringify({
+            username: username.value,
+            savedTime: Date.now()
+          }))
+        }
+        
+        loginAttempts.value = 0
+        showAlert('登录成功，欢迎回来！', 'success')
+        
+        // 检查是否为超级管理员
+        if (userRole === 'superAdmin') {
+          // 显示选项模态框
+          showAdminOptions.value = true
+        } else {
+          // 普通用户登录成功后的处理
+          // 显示问候语
+          setTimeout(() => {
+            showLoginGreeting.value = true
+            
+            // 2秒后隐藏问候语并跳转
+            setTimeout(() => {
+              showLoginGreeting.value = false
+              router.push('/')
+            }, 2000)
+          }, 100)
+        }
+      } else {
+        if (response.data.status === 401) {
+          // 密码错误时显示密码规则提示
+          showAlert('密码错误！密码应包含：\n1. 至少8个字符\n2. 包含字母和数字\n3. 可以包含特殊字符', 'error')
+        } else {
+          throw new Error(response.data.message || '登录失败')
+        }
+      }
+      
     } else {
-      await userStore.register(username.value, password.value, email.value)
-      alert('注册成功！请使用新账号登录')
-      isLogin.value = true
+      // 注册逻辑
+      const response = await fetch(`${config.api.apiUrl}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: username.value,
+          password: password.value,
+          email: email.value,
+          emailVerifyCode: emailVerifyCode.value
+        })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        showAlert('注册成功！', 'success')
+        
+        // 保存注册的用户信息到userStore
+        userStore.isLoggedIn = true;
+        userStore.userInfo = {
+          username: username.value,
+          id: data.data?.id || Date.now().toString(),
+          avatar: data.data?.avatar || '/avatars/default-avatar.png',
+          role: 'user',
+          email: email.value,
+          registrationTime: Date.now(),
+          createTime: formatDate(Date.now())
+        }
+        
+        // 获取用户排名（这里使用模拟数据，实际项目中应从API获取）
+        const mockRank = Math.floor(Math.random() * 100) + 1;
+        userRank.value = mockRank.toString();
+        
+        // 显示LaserCard
+        showLaserCard.value = true;
+      } else {
+        throw new Error(data.message || '注册失败')
+      }
     }
-    router.push('/')
   } catch (error: any) {
-    if (isLogin.value) {
-      loginAttempts.value++
-      lastLoginAttempt.value = Date.now()
-      // ... 其他错误处理 ...
+    console.error('操作失败:', error)
+    if (error.message === 'Failed to fetch') {
+      showAlert('连接服务器失败，请检查网络连接', 'error')
+    } else {
+      showAlert(error.message || '操作失败，请重试', 'error')
     }
   }
 }
+
+// 修改发送邮箱验证码方法
+const sendEmailVerifyCode = async () => {
+  if (!email.value || errors.value.email) {
+    showAlert('请输入有效的邮箱地址', 'warning')
+    return
+  }
+  
+  try {
+    const response = await fetch(`${config.api.apiUrl}/auth/send-email-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        email: email.value 
+      })
+    })
+    
+    const data = await response.json()
+    if (data.success) {
+      emailCountdown.value = 60
+      const timer = setInterval(() => {
+        emailCountdown.value--
+        if (emailCountdown.value <= 0) {
+          clearInterval(timer)
+        }
+      }, 1000)
+      showAlert('友令已发送到您的邮箱啦，请注意查收！')
+    } else {
+      throw new Error(data.message || '发送友令失败')
+    }
+  } catch (error: any) {
+    console.error('发送友令失败:', error)
+    showAlert(error.message || '发送友令失败惹，请再试试', 'error')
+  }
+}
+
+// 修改发送重置密码验证码方法
+const sendResetCode = async () => {
+  if (!resetEmail.value) {
+    showAlert('请输入邮箱地址', 'warning')
+    return
+  }
+
+  if (isLoading.value) return // 防止重复点击
+
+  isLoading.value = true
+  showResetCode.value = true
+  resetCountdown.value = 60
+  
+  // 启动倒计时
+  const timer = setInterval(() => {
+    resetCountdown.value--
+    if (resetCountdown.value <= 0) {
+      clearInterval(timer)
+    }
+  }, 1000)
+
+  try {
+    // 异步发送请求
+    const response = await fetch(`${config.api.apiUrl}/auth/send-email-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: resetEmail.value
+      })
+    })
+
+    const data = await response.json()
+    if (data.success) {
+      showAlert('验证码已发送到您的邮箱')
+    } else {
+      throw new Error(data.message || '发送验证码失败')
+    }
+  } catch (error: any) {
+    console.error('发送验证码失败:', error)
+    showAlert(error.message || '发送验证码失败，请重试', 'error')
+    // 发送失败时重置倒计时
+    resetCountdown.value = 0
+    clearInterval(timer)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 修改重置密码方法
+const handleResetPassword = async () => {
+  if (!resetEmail.value) {
+    showAlert('请输入邮箱地址', 'warning')
+    return
+  }
+
+  if (!showResetCode.value) {
+    // 第一步：发送验证码
+    await sendResetCode()
+    return
+  }
+
+  if (!resetCode.value) {
+    showAlert('请输入验证码', 'warning')
+    return
+  }
+
+  try {
+    const response = await fetch(`${config.api.apiUrl}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: resetEmail.value,
+        code: resetCode.value
+      })
+    })
+
+    const data = await response.json()
+    if (data.success) {
+      showAlert('密码重置成功，新密码已发送到您的邮箱')
+      showResetPassword.value = false
+      // 清空表单
+      resetEmail.value = ''
+      resetCode.value = ''
+      showResetCode.value = false
+    } else {
+      throw new Error(data.message || '重置密码失败')
+    }
+  } catch (error: any) {
+    showAlert(error.message || '重置密码失败，请重试', 'error')
+  }
+}
+
+// 关闭模态框时重置状态
+watch(showResetPassword, (newVal) => {
+  if (!newVal) {
+    resetEmail.value = ''
+    resetCode.value = ''
+    showResetCode.value = false
+    resetCountdown.value = 0
+  }
+})
+
+// 计算是否显示验证码
+const showCaptcha = computed(() => {
+  // 只在登录时且需要验证码时显示
+  return isLogin.value && userStore.needCaptcha(username.value)
+})
 
 // 定时检查并解除封禁
 const checkBlockStatus = () => {
@@ -557,7 +958,7 @@ const checkBlockStatus = () => {
 const checkSessionStatus = () => {
   if (userStore.isLoggedIn && !userStore.checkSession()) {
     userStore.logout()
-    alert('会话已过期，请重新登录')
+    showAlert('会话已过期，请重新登录', 'error')
     router.push('/login')
   }
 }
@@ -577,28 +978,22 @@ watch(username, (newValue) => {
 
 // 初始化记住的用户信息
 onMounted(() => {
+  // 立即生成验证码
+  generateCaptcha()
+  
+  // 检查是否有记住的用户信息
   const rememberedUserStr = localStorage.getItem('rememberedUser')
   if (rememberedUserStr) {
-    const { username: savedUsername, password: savedPassword, savedTime } = JSON.parse(rememberedUserStr)
-    
-    // 检查是否超过15天
-    const daysSinceSaved = (Date.now() - savedTime) / (24 * 60 * 60 * 1000)
-    if (daysSinceSaved >= 15) {
-      localStorage.removeItem('rememberedUser')
-      return
-    }
-
-    // 设置rememberMe为true，这样watch不会触发验证码刷新
-    rememberMe.value = true
-    username.value = savedUsername
-    password.value = savedPassword
-    
-    // 如果设置了记住密码且未超过15天，自动登录
-    if (!userStore.isLoggedIn) {
-      handleSubmit()
+    try {
+      const rememberedUser = JSON.parse(rememberedUserStr)
+      username.value = rememberedUser.username
+      password.value = rememberedUser.password
+      rememberMe.value = true
+    } catch (e) {
+      console.error('解析记住的用户信息失败:', e)
     }
   }
-  generateCaptcha()
+
   blockCheckInterval.value = window.setInterval(checkBlockStatus, 60000)
   sessionCheckInterval.value = window.setInterval(checkSessionStatus, 60000)
 
@@ -617,8 +1012,9 @@ onMounted(() => {
 // 切换登录/注册时重置验证码
 const toggleLoginMode = () => {
   isLogin.value = !isLogin.value
-  if (!isLogin.value || userStore.needCaptcha(username.value)) {
-    refreshCaptcha()
+  // 切换到登录模式时重新生成验证码
+  if (isLogin.value) {
+    generateCaptcha()
   }
 }
 
@@ -673,27 +1069,6 @@ watch(password, () => {
   }
 })
 
-// 在 script setup 中添加 sendEmailVerifyCode 方法
-const sendEmailVerifyCode = async () => {
-  if (!email.value || errors.value.email) {
-    alert('请输入有效的邮箱地址')
-    return
-  }
-  
-  try {
-    // TODO: 调用后端 API 发送验证码
-    emailCountdown.value = 60
-    const timer = setInterval(() => {
-      emailCountdown.value--
-      if (emailCountdown.value <= 0) {
-        clearInterval(timer)
-      }
-    }, 1000)
-  } catch (error: any) {
-    alert(error.message)
-  }
-}
-
 // 添加密码框焦点处理函数
 const handlePasswordFocus = () => {
   // 触发一个自定义事件，确保 live2d 模型能捕获到
@@ -705,6 +1080,147 @@ const handlePasswordFocus = () => {
 const handlePasswordBlur = () => {
   const event = new Event('focusout', { bubbles: true });
   document.activeElement?.dispatchEvent(event);
+}
+
+// 在 script setup 中添加显示提示的方法
+const showAlert = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+  alertConfig.value = {
+    show: true,
+    message,
+    type,
+    duration: 3000
+  }
+}
+
+// 进入首页
+const goToHome = () => {
+  showAdminOptions.value = false
+  
+  // 显示问候语
+  setTimeout(() => {
+    showLoginGreeting.value = true
+    
+    // 2秒后隐藏问候语并跳转
+    setTimeout(() => {
+      showLoginGreeting.value = false
+      router.push('/')
+    }, 2000)
+  }, 100)
+}
+
+// 发送管理员验证码
+const sendAdminVerifyCode = async () => {
+  try {
+    adminVerifyLoading.value = true
+    
+    // 获取用户的邮箱
+    const userEmail = userStore.userInfo?.email
+    
+    if (!userEmail) {
+      // 如果没有邮箱，从后端获取
+      const response = await fetch(`${config.api.apiUrl}/user/profile`, {
+        method: 'GET',
+        credentials: 'include'
+      })
+      
+      const data = await response.json()
+      if (!data.success || !data.data.email) {
+        throw new Error('无法获取您的邮箱信息')
+      }
+    }
+    
+    // 发送验证码 - 使用正确的邮件验证码接口
+    const response = await fetch(`${config.api.apiUrl}/auth/send-email-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        email: userStore.userInfo?.email,
+        type: 'admin_verify'  // 指定验证类型为管理员验证
+      })
+    })
+    
+    const data = await response.json()
+    if (data.success) {
+      showAlert('验证码已发送到您的邮箱', 'info')
+      
+      // 开始倒计时
+      adminVerifyCountdown.value = 60
+      const timer = setInterval(() => {
+        adminVerifyCountdown.value--
+        if (adminVerifyCountdown.value <= 0) {
+          clearInterval(timer)
+        }
+      }, 1000)
+    } else {
+      throw new Error(data.message || '发送验证码失败')
+    }
+  } catch (error: any) {
+    console.error('发送验证码失败:', error)
+    showAlert(error.message || '发送验证码失败，请重试', 'error')
+  } finally {
+    adminVerifyLoading.value = false
+  }
+}
+
+// 验证管理员验证码
+const verifyAdminCode = async () => {
+  if (!adminVerifyCode.value) {
+    showAlert('请输入验证码', 'warning')
+    return
+  }
+  
+  try {
+    adminVerifyLoading.value = true
+    
+    const response = await fetch(`${config.api.apiUrl}/auth/verify-email-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        email: userStore.userInfo?.email,
+        code: adminVerifyCode.value,
+        type: 'admin_verify'  // 指定验证类型为管理员验证
+      })
+    })
+    
+    const data = await response.json()
+    if (data.success) {
+      showAlert('验证成功，正在进入管理后台...', 'success')
+      
+      // 关闭模态框
+      showAdminVerify.value = false
+      
+      // 延迟跳转
+      setTimeout(() => {
+        router.push('/admin')
+      }, 1500)
+    } else {
+      throw new Error(data.message || '验证失败')
+    }
+  } catch (error: any) {
+    console.error('验证失败:', error)
+    showAlert(error.message || '验证失败，请重试', 'error')
+  } finally {
+    adminVerifyLoading.value = false
+  }
+}
+
+// 格式化日期函数
+const formatDate = (timestamp?: number | string) => {
+  if (!timestamp) return '2023/01/01';
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// 关闭激光卡片
+const closeLaserCard = () => {
+  showLaserCard.value = false;
+  router.push('/');
 }
 </script>
 
@@ -1003,7 +1519,7 @@ const handlePasswordBlur = () => {
 /* 密码强度指示器样式 */
 .password-strength {
   position: absolute;
-  bottom: -35px;
+  bottom: -38px;
   left: 0;
   width: 100%;
   margin: 15px 0;
@@ -1416,11 +1932,14 @@ input:-webkit-autofill:active {
 .input-group input:focus ~ label,
 .input-group input:not(:placeholder-shown) ~ label {
   top: 0;
-  transform: translateY(-50%) scale(0.8);
+  font-size: 0.8rem;
+  transform: translateY(-10px);
   color: #87CEEB;
   background: transparent;
-  left: 0px;
+  left: 10px;
   text-shadow: 0 0 10px rgba(135, 206, 235, 0.8);
+  text-align: left;
+  padding: 0;
 }
 
 /* 确保输入框文本不会与图标重叠 */
@@ -1486,5 +2005,256 @@ input:-webkit-autofill:active {
 /* 当有错误提示时，调整输入框右侧内边距 */
 .input-group input.has-error {
   padding-right: 120px;
+}
+
+/* 添加问候语样式 */
+.greeting-text {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 1.2rem;
+  text-align: center;
+  padding: 12px 25px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+/* 问候语动画 */
+.greeting-enter-active {
+  animation: greetingIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.greeting-leave-active {
+  animation: greetingOut 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes greetingIn {
+  from {
+    transform: translate(-50%, -150%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes greetingOut {
+  from {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -150%);
+    opacity: 0;
+  }
+}
+
+/* 添加加载动画样式 */
+.loading-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s linear infinite;
+  margin-right: 4px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 修改发送验证码按钮样式 */
+.send-code-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px 12px;
+  background: rgba(135, 206, 235, 0.8);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px; /* 防止按钮宽度变化 */
+}
+
+.send-code-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.send-code-btn:not(:disabled):hover {
+  background: rgba(135, 206, 235, 0.9);
+}
+
+/* 添加管理员选项模态框样式 */
+.admin-welcome-text {
+  color: #fff;
+  text-align: center;
+  margin: 15px 0;
+}
+
+.admin-options {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.home-btn,
+.admin-btn {
+  width: 100px;
+  height: 180px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #04e2ff49;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.home-btn-icon,
+.admin-btn-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+}
+
+.home-btn {
+  background: #ffffff00;
+}
+
+.home-btn:hover {
+  background: #2baccc;
+  transform: translateY(-2px);
+}
+
+.admin-btn {
+  background: #ffffff00;
+}
+
+.admin-btn:hover {
+  background: #f57c00;
+  transform: translateY(-2px);
+}
+
+.verify-text {
+  color: #fff;
+  text-align: center;
+  margin: 15px 0 20px;
+}
+
+/* 调整模态框样式 */
+.modal-content {
+  max-width: 450px;
+}
+
+/* LaserCard 模态框样式 */
+.laser-card-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.5s ease;
+}
+
+.laser-card-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  max-width: 95%;
+  max-height: 95%;
+  overflow: visible;
+  scrollbar-width: none; /* 针对 Firefox */
+  -ms-overflow-style: none; /* 针对 IE 和 Edge */
+}
+
+.welcome-title {
+  color: white;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  text-align: center;
+  background-image: linear-gradient(90deg, #2CF3FD, #f092ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 15px rgba(44, 243, 253, 0.4);
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
+}
+
+.confirm-btn {
+  margin-top: 20px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  background: linear-gradient(45deg, #2CF3FD, #f092ff);
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 15px rgba(44, 243, 253, 0.4);
+}
+
+.confirm-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 20px rgba(44, 243, 253, 0.7);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 </style> 

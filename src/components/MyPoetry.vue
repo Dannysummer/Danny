@@ -79,12 +79,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-@font-face {
-  font-family: 'ZhuShiAMaruGothic';
-  src: url('../assets/fonts/chinese/筑紫a丸粗.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
+/* 使用配置化的中文字体 - ZhuZiAWan */
 
 .poetry-card {
   width: calc(100%);
@@ -120,7 +115,7 @@ onMounted(() => {
   color: #fff;
   margin: 10px 0px;
   text-align: center;
-  font-family: 'ZhuShiAMaruGothic', KaiTi, serif;
+  font-family: var(--font-chinese-poetry);
   white-space: pre-line;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -260,8 +255,8 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 5px;
-  color: #1568ac;
-  /* background: rgba(255, 255, 255, 0.1); */
+  /* color: #1568ac !important; */
+  background: rgba(255, 255, 255, 0.0) !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -276,7 +271,7 @@ onMounted(() => {
 
 .change-btn .iconify {
   font-size: 1.2rem;
-  color: rgba(0, 204, 255, 0.8);
+  color: rgba(0, 204, 255, 0.8) !important;
 }
 
 .dark .change-btn {
